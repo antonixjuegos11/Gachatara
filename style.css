@@ -19,7 +19,7 @@ body {
     background-color: var(--bg-dark);
     color: var(--text-primary);
     min-height: 100vh;
-    overflow: hidden;
+    overflow-x: hidden;
     display: flex;
     flex-direction: column;
 }
@@ -81,6 +81,16 @@ body {
     color: var(--text-primary);
     border-bottom-color: var(--border-cyan);
     text-shadow: 0 0 10px rgba(0, 242, 254, 0.6);
+}
+
+/* Manejo de Pestañas (Lobby e Invocación) */
+.tab-content {
+    display: none;
+    width: 100%;
+}
+
+.tab-content.active {
+    display: flex;
 }
 
 /* Zona Central Lobby */
@@ -189,4 +199,134 @@ body {
     color: #5c6678;
     letter-spacing: 3px;
     margin-top: 2px;
+}
+
+/* =========================================
+   ESTILOS AÑADIDOS PARA EL PANEL DE GACHA
+========================================= */
+.gacha-frame {
+    width: 100%;
+    max-width: 950px;
+    background: var(--panel-bg);
+    border: 1px solid rgba(0, 242, 254, 0.25);
+    border-radius: 16px;
+    padding: 2.5rem;
+    text-align: center;
+    box-shadow: 0 0 35px rgba(0, 0, 0, 0.8);
+    margin: 0 auto;
+}
+
+.gacha-banner-title {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 2.2rem;
+    color: var(--border-cyan);
+    margin-bottom: 0.5rem;
+    letter-spacing: 2px;
+}
+
+.gacha-subtitle {
+    color: var(--text-secondary);
+    margin-bottom: 2rem;
+    font-size: 1.1rem;
+}
+
+.gacha-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.btn-pull {
+    background: linear-gradient(135deg, #00f2fe, #4facfe);
+    border: none;
+    color: #000;
+    padding: 1rem 2rem;
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 900;
+    font-size: 1rem;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.btn-pull.multi {
+    background: linear-gradient(135deg, #7928ca, #ff0080);
+    color: #fff;
+}
+
+.btn-pull:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 0 20px rgba(0, 242, 254, 0.5);
+}
+
+/* Grid de Resultados */
+.results-grid {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 1.2rem;
+    margin-top: 1.5rem;
+}
+
+.card-pokemon {
+    background: rgba(10, 13, 26, 0.9);
+    border: 2px solid #555;
+    border-radius: 10px;
+    padding: 1rem;
+    width: 150px;
+    text-align: center;
+    animation: popIn 0.3s ease-out;
+}
+
+.card-pokemon img {
+    width: 90px;
+    height: 90px;
+    object-fit: contain;
+}
+
+.card-pokemon h4 {
+    font-size: 1rem;
+    margin-top: 0.5rem;
+    font-family: 'Orbitron', sans-serif;
+}
+
+.card-rarity {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    margin-top: 0.3rem;
+    padding: 0.2rem;
+    border-radius: 4px;
+    letter-spacing: 1px;
+}
+
+/* Bordes y Luces por Rareza */
+.card-pokemon.común { border-color: #a0aec0; }
+.card-pokemon.común .card-rarity { color: #a0aec0; }
+
+.card-pokemon.raro { border-color: #3182ce; box-shadow: 0 0 10px rgba(49, 130, 206, 0.4); }
+.card-pokemon.raro .card-rarity { color: #3182ce; }
+
+.card-pokemon.épico { border-color: #805ad5; box-shadow: 0 0 15px rgba(128, 90, 213, 0.5); }
+.card-pokemon.épico .card-rarity { color: #805ad5; }
+
+.card-pokemon.legendario { border-color: #d69e2e; box-shadow: 0 0 20px rgba(214, 158, 46, 0.7); }
+.card-pokemon.legendario .card-rarity { color: #d69e2e; }
+
+.card-pokemon.secreto { 
+    border-color: #e53e3e; 
+    box-shadow: 0 0 25px rgba(229, 62, 62, 0.9); 
+    animation: pulseGlow 1.5s infinite alternate; 
+}
+.card-pokemon.secreto .card-rarity { color: #e53e3e; }
+
+@keyframes popIn {
+    0% { transform: scale(0.5); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes pulseGlow {
+    0% { box-shadow: 0 0 15px rgba(229, 62, 62, 0.6); }
+    100% { box-shadow: 0 0 30px rgba(229, 62, 62, 1); }
 }

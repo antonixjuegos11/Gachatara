@@ -16,15 +16,16 @@
     <!-- BANNER SUPERIOR DE NAVEGACIÓN -->
     <header class="top-header">
         <div class="logo-title">
-            <span class="game-tag">GACHA RPG</span>
+            <span class="game-tag">GACHATARA</span>
         </div>
         <nav class="nav-bar">
-            <button class="nav-tab active">Lobby</button>
+            <button class="nav-tab active" onclick="switchTab('lobby')">Lobby</button>
+            <button class="nav-tab" onclick="switchTab('invocacion')">Invocación</button>
         </nav>
     </header>
 
     <!-- ZONA CENTRAL DEL LOBBY -->
-    <main class="lobby-container">
+    <main id="tab-lobby" class="lobby-container tab-content active">
         <!-- Panel Central de Presentación -->
         <div class="hero-frame">
             <div class="hero-overlay"></div>
@@ -46,6 +47,25 @@
         </div>
     </main>
 
+    <!-- ZONA DE INVOCACIÓN (GACHA) -->
+    <main id="tab-invocacion" class="lobby-container tab-content">
+        <div class="gacha-frame">
+            <h2 class="gacha-banner-title">BANNER KANTO GEN 1</h2>
+            <p class="gacha-subtitle">¡Involucra Pokémon de 1ª Generación y Megaevoluciones Secretas!</p>
+            
+            <div class="gacha-buttons">
+                <button class="btn-pull" onclick="pullGacha(1)">Tirada x1 (1 Ticket)</button>
+                <button class="btn-pull multi" onclick="pullGacha(10)">Tirada x10 (10 Tickets)</button>
+            </div>
+
+            <!-- RESULTADOS DE TIRADAS -->
+            <div id="gacha-results" class="results-grid"></div>
+        </div>
+    </main>
+
+    <!-- Carga de Scripts en Orden -->
+    <script src="db.js"></script>
+    <script src="gacha.js"></script>
     <script src="game.js"></script>
 </body>
 </html>

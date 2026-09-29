@@ -36,3 +36,47 @@ function animate() {
     requestAnimationFrame(animate);
 }
 animate();
+
+// =========================================
+// LÓGICA DE NAVEGACIÓN Y SISTEMA GACHA
+// =========================================
+
+// Cambiar entre pestañas (Lobby e Invocación)
+function switchTab(tabId) {
+    document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+    document.querySelectorAll('.nav-tab').forEach(btn => btn.classList.remove('active'));
+
+    const activeTab = document.getElementById(`tab-${tabId}`);
+    if (activeTab) activeTab.classList.add('active');
+
+    if (event && event.currentTarget) {
+        event.currentTarget.classList.add('active');
+    }
+}
+
+// Ejecutar tiradas Gacha
+function pullGacha(amount) {
+    const resultsContainer = document.getElementById('gacha-results');
+    if (!resultsContainer) return;
+
+    resultsContainer.innerHTML = ''; // Limpiar tiradas anteriores
+
+    let pulls = [];
+    if (amount === 1) {
+        pulls.push(executeSinglePull());
+    } else {
+        pulls = executeMultiPull();
+    }
+
+    // Dibujar las cartas en pantalla
+    pulls.forEach(pkmn => {
+        const card = document.createElement('div');
+        card.className = `card-pokemon ${pkmn.rarity}`;
+        card.innerHTML = `
+            <img src="${pkmn.sprite}" alt="${pkmn.name}">
+            <h4>${pkmn.name}</h4>
+            <div class="card-rarity">${pkmn.rarity}</div>
+        `;
+        resultsContainer.appendChild(card);
+    });
+}
