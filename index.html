@@ -58,10 +58,22 @@
                 <button class="btn-pull multi" onclick="pullGacha(10)">Tirada x10 (10 Tickets)</button>
             </div>
 
-            <!-- RESULTADOS DE TIRADAS -->
+            <!-- RESULTADOS DE TIRADAS DESPUÉS DE LA CINEMÁTICA -->
             <div id="gacha-results" class="results-grid"></div>
         </div>
     </main>
+
+    <!-- PANTALLA CINEMÁTICA DE TIRADA (GACHA) -->
+    <div id="gacha-cinema-overlay" class="cinema-overlay">
+        <div class="sky-background"></div>
+        <div id="gacha-meteor" class="meteor"></div>
+        <div id="flash-effect" class="flash-bang"></div>
+        
+        <!-- Escenario de revelación de cartas interactivas 3D -->
+        <div id="cinema-card-stage" class="cinema-stage"></div>
+        
+        <button id="btn-skip-gacha" class="btn-skip" onclick="closeGachaCinema()">CONTINUAR / OMITIR</button>
+    </div>
 
     <!-- Carga de Scripts en Orden -->
     <script src="db.js"></script>

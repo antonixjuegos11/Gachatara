@@ -38,11 +38,36 @@ function animate() {
 animate();
 
 // =========================================
-// LÓGICA DE NAVEGACIÓN Y SISTEMA GACHA
+// BASE DE DATOS Y LÓGICA GACHA
 // =========================================
 
-// Cambiar entre pestañas (Lobby e Invocación)
-function switchTab(tabId) {
+// Pool de Pokémon de ejemplo
+const pokemonPool = [
+    { name: "Pikachu", rarity: "rare", sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/25.png" },
+    { name: "Charizard", rarity: "ultra-rare", sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/6.png" },
+    { name: "Mewtwo", rarity: "legendary", sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/150.png" },
+    { name: "Rattata", rarity: "common", sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/19.png" },
+    { name: "Pidgey", rarity: "common", sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/16.png" }
+];
+
+function executeSinglePull() {
+    const randomIndex = Math.floor(Math.random() * pokemonPool.length);
+    return pokemonPool[randomIndex];
+}
+
+function executeMultiPull() {
+    const pulls = [];
+    for (let i = 0; i < 10; i++) {
+        pulls.push(executeSinglePull());
+    }
+    return pulls;
+}
+
+// =========================================
+// LÓGICA DE NAVEGACIÓN
+// =========================================
+
+function switchTab(tabId, event) {
     document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
     document.querySelectorAll('.nav-tab').forEach(btn => btn.classList.remove('active'));
 
@@ -54,7 +79,6 @@ function switchTab(tabId) {
     }
 }
 
-// Ejecutar tiradas Gacha
 // Ejecutar tiradas Gacha con Animación Escalonada
 function pullGacha(amount) {
     const resultsContainer = document.getElementById('gacha-results');
@@ -74,7 +98,7 @@ function pullGacha(amount) {
         const card = document.createElement('div');
         card.className = `card-pokemon ${pkmn.rarity}`;
         
-        // Retraso de animación para que aparezcan progresivamente
+        // Retraso de animación corregido
         card.style.animationDelay = `${index * 0.12}s`;
 
         card.innerHTML = `
