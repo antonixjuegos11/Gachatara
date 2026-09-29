@@ -55,6 +55,7 @@ function switchTab(tabId) {
 }
 
 // Ejecutar tiradas Gacha
+// Ejecutar tiradas Gacha con Animación Escalonada
 function pullGacha(amount) {
     const resultsContainer = document.getElementById('gacha-results');
     if (!resultsContainer) return;
@@ -68,10 +69,14 @@ function pullGacha(amount) {
         pulls = executeMultiPull();
     }
 
-    // Dibujar las cartas en pantalla
-    pulls.forEach(pkmn => {
+    // Dibujar las cartas con un retraso animado entre cada una
+    pulls.forEach((pkmn, index) => {
         const card = document.createElement('div');
         card.className = `card-pokemon ${pkmn.rarity}`;
+        
+        // Retraso de animación para que aparezcan progresivamente
+        card.style.animationDelay = `${index * 0.12}s`;
+
         card.innerHTML = `
             <img src="${pkmn.sprite}" alt="${pkmn.name}">
             <h4>${pkmn.name}</h4>

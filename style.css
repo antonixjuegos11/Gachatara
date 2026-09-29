@@ -330,3 +330,68 @@ body {
     0% { box-shadow: 0 0 15px rgba(229, 62, 62, 0.6); }
     100% { box-shadow: 0 0 30px rgba(229, 62, 62, 1); }
 }
+/* Pestañas limpias estilo Fortnite */
+.tab-content {
+    display: none;
+    width: 100%;
+    min-height: calc(100vh - 80px);
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.4s ease-in-out;
+}
+
+.tab-content.active {
+    display: flex;
+    opacity: 1;
+}
+
+/* Panel Gacha Estilo Pantalla Completa */
+.gacha-frame {
+    width: 100%;
+    max-width: 1100px;
+    background: var(--panel-bg);
+    border: 1px solid rgba(0, 242, 254, 0.25);
+    border-radius: 16px;
+    padding: 3rem 2rem;
+    text-align: center;
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.85);
+    clip-path: polygon(0 0, 98% 0, 100% 2%, 100% 100%, 2% 100%, 0 98%);
+}
+
+/* ANIMACIÓN DE REVELADO DE CARTAS (GACHA) */
+.results-grid {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 1.2rem;
+    margin-top: 2rem;
+    perspective: 1000px;
+}
+
+.card-pokemon {
+    background: rgba(10, 13, 26, 0.95);
+    border: 2px solid #555;
+    border-radius: 12px;
+    padding: 1rem;
+    width: 150px;
+    text-align: center;
+    opacity: 0;
+    transform: translateY(30px) rotateY(90deg) scale(0.8);
+    animation: revealCard 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.27) forwards;
+}
+
+/* Animación Giro 3D y Entrada */
+@keyframes revealCard {
+    0% {
+        opacity: 0;
+        transform: translateY(40px) rotateY(90deg) scale(0.7);
+    }
+    50% {
+        opacity: 0.8;
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0) rotateY(0deg) scale(1);
+    }
+}
