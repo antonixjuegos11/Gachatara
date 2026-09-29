@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gacha RPG | Lobby Principal</title>
+    <!-- Fuentes Gamer Pro -->
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- Fondo Animado de Partículas -->
+    <canvas id="particles-canvas"></canvas>
+
+    <!-- BANNER SUPERIOR DE NAVEGACIÓN -->
+    <header class="top-header">
+        <div class="logo-title">
+            <span class="game-tag">GACHA RPG</span>
+        </div>
+        <nav class="nav-bar">
+            <button class="nav-tab active">Lobby</button>
+        </nav>
+    </header>
+
+    <!-- ZONA CENTRAL DEL LOBBY -->
+    <main class="lobby-container">
+        <!-- Panel Central de Presentación -->
+        <div class="hero-frame">
+            <div class="hero-overlay"></div>
+            
+            <div class="hero-content">
+                <span class="badge-status">SISTEMA LISTO</span>
+                <h1 class="lobby-title">LOBBY PRINCIPAL</h1>
+                <p class="lobby-subtitle">Selecciona tu modo de juego para desplegar la unidad.</p>
+                
+                <!-- Botón de Combate (Deshabilitado) -->
+                <div class="battle-btn-wrapper">
+                    <button class="btn-battle disabled" disabled>
+                        <span class="btn-glitch"></span>
+                        <span class="btn-text">¡A LUCHAR!</span>
+                        <span class="btn-subtext">PRÓXIMAMENTE</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="game.js"></script>
+</body>
+</html>

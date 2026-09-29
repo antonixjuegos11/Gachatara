@@ -1,0 +1,192 @@
+:root {
+    --bg-dark: #070913;
+    --panel-bg: rgba(15, 20, 38, 0.75);
+    --border-cyan: #00f2fe;
+    --border-purple: #7928ca;
+    --text-primary: #ffffff;
+    --text-secondary: #8292ab;
+    --disabled-color: #3a415a;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Rajdhani', sans-serif;
+}
+
+body {
+    background-color: var(--bg-dark);
+    color: var(--text-primary);
+    min-height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Canvas de fondo */
+#particles-canvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+    pointer-events: none;
+}
+
+/* Header Superior */
+.top-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.2rem 3rem;
+    background: rgba(10, 13, 26, 0.85);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(0, 242, 254, 0.2);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+.logo-title .game-tag {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.4rem;
+    font-weight: 900;
+    letter-spacing: 3px;
+    background: linear-gradient(90deg, #fff, var(--border-cyan));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.nav-bar {
+    display: flex;
+    gap: 1rem;
+}
+
+.nav-tab {
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--text-secondary);
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.05rem;
+    font-weight: 700;
+    padding: 0.5rem 1.5rem;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.nav-tab.active {
+    color: var(--text-primary);
+    border-bottom-color: var(--border-cyan);
+    text-shadow: 0 0 10px rgba(0, 242, 254, 0.6);
+}
+
+/* Zona Central Lobby */
+.lobby-container {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+}
+
+.hero-frame {
+    position: relative;
+    width: 100%;
+    max-width: 900px;
+    height: 520px;
+    background: var(--panel-bg);
+    border: 1px solid rgba(0, 242, 254, 0.25);
+    border-radius: 16px;
+    box-shadow: 0 0 35px rgba(0, 0, 0, 0.8), inset 0 0 15px rgba(0, 242, 254, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    clip-path: polygon(0 0, 97% 0, 100% 3%, 100% 100%, 3% 100%, 0 97%);
+}
+
+.hero-overlay {
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: radial-gradient(circle, rgba(0,242,254,0.05) 0%, rgba(7,9,19,0.7) 100%);
+    pointer-events: none;
+}
+
+.hero-content {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.2rem;
+}
+
+.badge-status {
+    background: rgba(0, 242, 254, 0.1);
+    border: 1px solid var(--border-cyan);
+    color: var(--border-cyan);
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 700;
+    padding: 0.3rem 1rem;
+    letter-spacing: 2px;
+    border-radius: 4px;
+}
+
+.lobby-title {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 3.2rem;
+    font-weight: 900;
+    letter-spacing: 4px;
+    text-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+}
+
+.lobby-subtitle {
+    font-size: 1.2rem;
+    color: var(--text-secondary);
+    max-width: 500px;
+}
+
+/* Botón de Combate Deshabilitado */
+.battle-btn-wrapper {
+    margin-top: 2rem;
+}
+
+.btn-battle {
+    position: relative;
+    padding: 1.2rem 3.5rem;
+    font-family: 'Orbitron', sans-serif;
+    border: none;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: not-allowed;
+    transition: all 0.3s ease;
+}
+
+.btn-battle.disabled {
+    background: linear-gradient(135deg, #1c2237, var(--disabled-color));
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+    opacity: 0.65;
+}
+
+.btn-text {
+    font-size: 1.8rem;
+    font-weight: 900;
+    color: #8b95a5;
+    letter-spacing: 2px;
+}
+
+.btn-subtext {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #5c6678;
+    letter-spacing: 3px;
+    margin-top: 2px;
+}
