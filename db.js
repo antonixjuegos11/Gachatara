@@ -8,75 +8,86 @@ const DATABASE = {
     secreto: []
 };
 
-// Carga de Megas con IDs de PokeAPI perfectamente alineados con sus sprites reales
-function initSecretMegas() {
-    DATABASE.secreto = [];
-    const allMegas = [
-        { apiId: 10033, name: "Mega Venusaur" },
-        { apiId: 10034, name: "Mega Charizard X" },
-        { apiId: 10035, name: "Mega Charizard Y" },
-        { apiId: 10036, name: "Mega Blastoise" },
-        { apiId: 10037, name: "Mega Alakazam" },
-        { apiId: 10038, name: "Mega Gengar" },
-        { apiId: 10039, name: "Mega Kangaskhan" },
-        { apiId: 10040, name: "Mega Pinsir" },
-        { apiId: 10041, name: "Mega Gyarados" },
-        { apiId: 10042, name: "Mega Aerodactyl" },
-        { apiId: 10043, name: "Mega Mewtwo X" },
-        { apiId: 10044, name: "Mega Mewtwo Y" },
-        { apiId: 10045, name: "Mega Ampharos" },
-        { apiId: 10046, name: "Mega Scizor" },
-        { apiId: 10047, name: "Mega Heracross" },
-        { apiId: 10048, name: "Mega Houndoom" },
-        { apiId: 10049, name: "Mega Tyranitar" },
-        { apiId: 10050, name: "Mega Blaziken" },
-        { apiId: 10051, name: "Mega Gardevoir" },
-        { apiId: 10052, name: "Mega Mawile" },
-        { apiId: 10053, name: "Mega Aggron" },
-        { apiId: 10054, name: "Mega Medicham" },
-        { apiId: 10055, name: "Mega Manectric" },
-        { apiId: 10056, name: "Mega Banette" },
-        { apiId: 10057, name: "Mega Absol" },
-        { apiId: 10058, name: "Mega Garchomp" },
-        { apiId: 10059, name: "Mega Lucario" },
-        { apiId: 10060, name: "Mega Abomasnow" },
-        { apiId: 10062, name: "Mega Beedrill" },
-        { apiId: 10063, name: "Mega Pidgeot" },
-        { apiId: 10064, name: "Mega Slowbro" },
-        { apiId: 10065, name: "Mega Steelix" },
-        { apiId: 10066, name: "Mega Sceptile" },
-        { apiId: 10067, name: "Mega Swampert" },
-        { apiId: 10068, name: "Mega Sableye" },
-        { apiId: 10069, name: "Mega Sharpedo" },
-        { apiId: 10070, name: "Mega Camerupt" },
-        { apiId: 10071, name: "Mega Altaria" },
-        { apiId: 10072, name: "Mega Glalie" },
-        { apiId: 10073, name: "Mega Salamence" },
-        { apiId: 10074, name: "Mega Metagross" },
-        { apiId: 10075, name: "Mega Latias" },
-        { apiId: 10076, name: "Mega Latios" },
-        { apiId: 10077, name: "Mega Lopunny" },
-        { apiId: 10078, name: "Mega Rayquaza" },
-        { apiId: 10079, name: "Kyogre Primigenio" },
-        { apiId: 10080, name: "Groudon Primigenio" },
-        { apiId: 10087, name: "Mega Audino" },
-        { apiId: 10088, name: "Mega Diancie" }
-    ];
+// Nombres legibles en español/formato correcto para la Dex
+const MEGA_NAMES = {
+    "venusaur-mega": "Mega Venusaur",
+    "charizard-mega-x": "Mega Charizard X",
+    "charizard-mega-y": "Mega Charizard Y",
+    "blastoise-mega": "Mega Blastoise",
+    "beedrill-mega": "Mega Beedrill",
+    "pidgeot-mega": "Mega Pidgeot",
+    "alakazam-mega": "Mega Alakazam",
+    "slowbro-mega": "Mega Slowbro",
+    "gengar-mega": "Mega Gengar",
+    "kangaskhan-mega": "Mega Kangaskhan",
+    "pinsir-mega": "Mega Pinsir",
+    "gyarados-mega": "Mega Gyarados",
+    "aerodactyl-mega": "Mega Aerodactyl",
+    "mewtwo-mega-x": "Mega Mewtwo X",
+    "mewtwo-mega-y": "Mega Mewtwo Y",
+    "ampharos-mega": "Mega Ampharos",
+    "steelix-mega": "Mega Steelix",
+    "scizor-mega": "Mega Scizor",
+    "heracross-mega": "Mega Heracross",
+    "houndoom-mega": "Mega Houndoom",
+    "tyranitar-mega": "Mega Tyranitar",
+    "sceptile-mega": "Mega Sceptile",
+    "blaziken-mega": "Mega Blaziken",
+    "swampert-mega": "Mega Swampert",
+    "gardevoir-mega": "Mega Gardevoir",
+    "sableye-mega": "Mega Sableye",
+    "mawile-mega": "Mega Mawile",
+    "aggron-mega": "Mega Aggron",
+    "medicham-mega": "Mega Medicham",
+    "manectric-mega": "Mega Manectric",
+    "sharpedo-mega": "Mega Sharpedo",
+    "camerupt-mega": "Mega Camerupt",
+    "altaria-mega": "Mega Altaria",
+    "banette-mega": "Mega Banette",
+    "absol-mega": "Mega Absol",
+    "glalie-mega": "Mega Glalie",
+    "salamence-mega": "Mega Salamence",
+    "metagross-mega": "Mega Metagross",
+    "latias-mega": "Mega Latias",
+    "latios-mega": "Mega Latios",
+    "kyogre-primal": "Kyogre Primigenio",
+    "groudon-primal": "Groudon Primigenio",
+    "rayquaza-mega": "Mega Rayquaza",
+    "lopunny-mega": "Mega Lopunny",
+    "garchomp-mega": "Mega Garchomp",
+    "lucario-mega": "Mega Lucario",
+    "abomasnow-mega": "Mega Abomasnow",
+    "gallade-mega": "Mega Gallade",
+    "audino-mega": "Mega Audino",
+    "diancie-mega": "Mega Diancie"
+};
 
+// Carga automática de Megas consultando directamente a la PokéAPI
+async function initSecretMegas() {
+    DATABASE.secreto = [];
     let nextDexId = 1026;
-    allMegas.forEach(m => {
-        DATABASE.secreto.push({
-            id: nextDexId,
-            name: m.name,
-            stage: 4,
-            rarity: "secreto",
-            sprite: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${m.apiId}.png`
-        });
-        nextDexId++;
-    });
+
+    for (const [apiKey, displayName] of Object.entries(MEGA_NAMES)) {
+        try {
+            const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${apiKey}`);
+            if (!res.ok) continue;
+            const data = await res.json();
+
+            DATABASE.secreto.push({
+                id: nextDexId,
+                name: displayName,
+                stage: 4,
+                rarity: "secreto",
+                sprite: data.sprites.front_default || `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${data.id}.png`
+            });
+            nextDexId++;
+        } catch (e) {
+            console.error(`Error cargando mega ${apiKey}:`, e);
+        }
+    }
 }
 
-// Carga automática de Pokémon
+// Carga automática de Pokémon base y Ultraentes
 async function loadFullDatabase() {
     try {
         console.log("Cargando base de datos completa...");
@@ -86,7 +97,8 @@ async function loadFullDatabase() {
         DATABASE.epico = [];
         DATABASE.legendario = [];
         
-        initSecretMegas();
+        // Carga dinámica de Megas
+        await initSecretMegas();
 
         const response = await fetch('https://pokeapi.co/api/v2/pokemon?limit=1025');
         const data = await response.json();
