@@ -1,4 +1,4 @@
-// gacha.js - Sistema de Banners por Generación (1 a 9)
+// gacha.js - Sistema de Banners por Generación (1 a 9) Corregido
 
 // Generación activa por defecto (Gen 1)
 let currentGen = 1;
@@ -20,7 +20,7 @@ const GEN_RANGES = {
 function selectBanner(genNumber) {
     currentGen = genNumber;
     
-    // Actualizar botones de selector de banner en la UI si existen
+    // Actualizar botones en la UI
     document.querySelectorAll('.banner-btn').forEach(btn => btn.classList.remove('active'));
     const activeBtn = document.getElementById(`btn-gen-${genNumber}`);
     if (activeBtn) activeBtn.classList.add('active');
@@ -32,53 +32,74 @@ function selectBanner(genNumber) {
     }
 }
 
-// Obtener un Pokémon aleatorio filtrado por la Generación activa
+// Obtener un Pokémon aleatorio sin huecos nulos
 function getRandomPokemonFromGen(rarity) {
-    const pool = DATABASE[rarity] || [];
-    const range = GEN_RANGES[currentGen];
+    if (typeof DATABASE === 'undefined') return null;
 
-    if (!range) return null;
+    const range = GEN_RANGES[currentGen] || GEN_RANGES[1];
+    let pool = DATABASE[rarity] || [];
 
-    // Filtrar los Pokémon de esa rareza que pertenecen a la generación activa
+    // Filtrar Pokémon por la generación activa
     let filtered = pool.filter(pkmn => {
+        if (!pkmn) return false;
         if (rarity === 'secreto') {
-            // Si es secreto (Mega), comprobamos si la mega pertenece a esta Gen
-            return range.megas.includes(pkmn.name);
+            // Comparación no sensible a mayúsculas/minúsculas para no fallar
+            return range.megas.some(m => m.toLowerCase().trim() === pkmn.name.toLowerCase().trim());
         }
         return pkmn.id >= range.min && pkmn.id <= range.max;
     });
 
-    // Fallback por si una categoría se queda vacía en esa Gen
+    // FALLBACK SEGURO: Si no hay Megas en esta Gen (Gens 7, 8, 9) o la categoría está vacía
     if (filtered.length === 0) {
-        filtered = pool;
+        if (rarity === 'secreto') {
+            // Si sale Secreto en Gen sin megas, damos un Legendario de esa Gen
+            filtered = (DATABASE.legendario || []).filter(pkmn => pkmn && pkmn.id >= range.min && pkmn.id <= range.max);
+        }
+        // Si aun así está vacío, caemos a Épico o Raro de esa misma Gen
+        if (filtered.length === 0) {
+            filtered = (DATABASE.epico || []).filter(pkmn => pkmn && pkmn.id >= range.min && pkmn.id <= range.max);
+        }
+        // Último recurso: un Común de la Gen activa
+        if (filtered.length === 0) {
+            filtered = (DATABASE.comun || []).filter(pkmn => pkmn && pkmn.id >= range.min && pkmn.id <= range.max);
+        }
     }
 
+    // Elegir aleatorio
     const randomIndex = Math.floor(Math.random() * filtered.length);
-    return filtered[randomIndex];
+    return filtered[randomIndex] || null;
 }
 
-// Determinar la rareza de la tirada según probabilidades %
+// Determinar la rareza de la tirada según %
 function rollRarity() {
     const rand = Math.random() * 100;
     
-    if (rand < 1) return "secreto";       // 1% Mega / Secreto
-    if (rand < 5) return "legendario";    // 4% Legendario
-    if (rand < 20) return "epico";        // 15% Épico
-    if (rand < 50) return "raro";         // 30% Raro
-    return "comun";                       // 50% Común
+    if (rand < 2) return "secreto";       // 2% Mega / Secreto
+    if (rand < 7) return "legendario";    // 5% Legendario
+    if (rand < 22) return "epico";        // 15% Épico
+    if (rand < 52) return "raro";         // 30% Raro
+    return "comun";                       // 48% Común
 }
 
-// Ejecutar tirada individual
+// Ejecutar tirada individual asegurando resultado válido
 function executeSinglePull() {
-    const rarity = rollRarity();
-    return getRandomPokemonFromGen(rarity);
+    let rarity = rollRarity();
+    let result = getRandomPokemonFromGen(rarity);
+
+    // Si por alguna razón diera null, aseguramos un Pokémon de la generación
+    if (!result) {
+        result = getRandomPokemonFromGen("comun");
+    }
+
+    return result;
 }
 
 // Ejecutar tirada múltiple (x10)
 function executeMultiPull() {
     const pulls = [];
     for (let i = 0; i < 10; i++) {
-        pulls.push(executeSinglePull());
+        const pkmn = executeSinglePull();
+        if (pkmn) pulls.push(pkmn);
     }
     return pulls;
 }
