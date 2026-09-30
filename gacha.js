@@ -1,6 +1,5 @@
-// gacha.js - Sistema de Banners por Generación (1 a 9) Corregido
+// gacha.js - Sistema de Banners por Generación Garantizado
 
-// Generación activa por defecto (Gen 1)
 let currentGen = 1;
 
 // Rangos de IDs por Generación
@@ -16,90 +15,89 @@ const GEN_RANGES = {
     9: { min: 906, max: 1025, megas: [] }
 };
 
-// Cambiar el banner activo
+// Cambiar banner activo
 function selectBanner(genNumber) {
     currentGen = genNumber;
     
-    // Actualizar botones en la UI
     document.querySelectorAll('.banner-btn').forEach(btn => btn.classList.remove('active'));
     const activeBtn = document.getElementById(`btn-gen-${genNumber}`);
     if (activeBtn) activeBtn.classList.add('active');
 
-    // Actualizar título del banner
     const bannerTitle = document.getElementById('banner-title');
     if (bannerTitle) {
         bannerTitle.innerText = `BANNER GENERACIÓN ${genNumber}`;
     }
 }
 
-// Obtener un Pokémon aleatorio sin huecos nulos
+// Determinar rareza (%)
+function rollRarity() {
+    const rand = Math.random() * 100;
+    
+    if (rand < 3) return "secreto";       // 3% Mega / Secreto
+    if (rand < 8) return "legendario";    // 5% Legendario
+    if (rand < 25) return "epico";        // 17% Épico
+    if (rand < 55) return "raro";         // 30% Raro
+    return "comun";                       // 45% Común
+}
+
+// Obtener un Pokémon con garantías
 function getRandomPokemonFromGen(rarity) {
     if (typeof DATABASE === 'undefined') return null;
 
     const range = GEN_RANGES[currentGen] || GEN_RANGES[1];
     let pool = DATABASE[rarity] || [];
 
-    // Filtrar Pokémon por la generación activa
+    // Filtrar Pokémon pertenecientes a la gen activa
     let filtered = pool.filter(pkmn => {
         if (!pkmn) return false;
         if (rarity === 'secreto') {
-            // Comparación no sensible a mayúsculas/minúsculas para no fallar
             return range.megas.some(m => m.toLowerCase().trim() === pkmn.name.toLowerCase().trim());
         }
         return pkmn.id >= range.min && pkmn.id <= range.max;
     });
 
-    // FALLBACK SEGURO: Si no hay Megas en esta Gen (Gens 7, 8, 9) o la categoría está vacía
+    // FALLBACKS DE SEGURIDAD (Para no dejar ningún hueco nulo nunca)
     if (filtered.length === 0) {
         if (rarity === 'secreto') {
-            // Si sale Secreto en Gen sin megas, damos un Legendario de esa Gen
+            // Si la Gen activa no tiene Megas (o aun están cargando), busca una Mega global
+            filtered = DATABASE.secreto || [];
+        }
+        if (filtered.length === 0) {
             filtered = (DATABASE.legendario || []).filter(pkmn => pkmn && pkmn.id >= range.min && pkmn.id <= range.max);
         }
-        // Si aun así está vacío, caemos a Épico o Raro de esa misma Gen
-        if (filtered.length === 0) {
-            filtered = (DATABASE.epico || []).filter(pkmn => pkmn && pkmn.id >= range.min && pkmn.id <= range.max);
-        }
-        // Último recurso: un Común de la Gen activa
         if (filtered.length === 0) {
             filtered = (DATABASE.comun || []).filter(pkmn => pkmn && pkmn.id >= range.min && pkmn.id <= range.max);
         }
+        if (filtered.length === 0) {
+            filtered = DATABASE.comun || [];
+        }
     }
 
-    // Elegir aleatorio
     const randomIndex = Math.floor(Math.random() * filtered.length);
     return filtered[randomIndex] || null;
 }
 
-// Determinar la rareza de la tirada según %
-function rollRarity() {
-    const rand = Math.random() * 100;
-    
-    if (rand < 2) return "secreto";       // 2% Mega / Secreto
-    if (rand < 7) return "legendario";    // 5% Legendario
-    if (rand < 22) return "epico";        // 15% Épico
-    if (rand < 52) return "raro";         // 30% Raro
-    return "comun";                       // 48% Común
-}
-
-// Ejecutar tirada individual asegurando resultado válido
+// Tirada individual con reintento forzado
 function executeSinglePull() {
     let rarity = rollRarity();
     let result = getRandomPokemonFromGen(rarity);
 
-    // Si por alguna razón diera null, aseguramos un Pokémon de la generación
-    if (!result) {
-        result = getRandomPokemonFromGen("comun");
+    // Si diera nulo por retardo de red, intenta forzar con común de DATABASE
+    if (!result && DATABASE.comun && DATABASE.comun.length > 0) {
+        result = DATABASE.comun[Math.floor(Math.random() * DATABASE.comun.length)];
     }
 
     return result;
 }
 
-// Ejecutar tirada múltiple (x10)
+// Tirada x10 garantizando exactamente 10 elementos siempre
 function executeMultiPull() {
     const pulls = [];
-    for (let i = 0; i < 10; i++) {
+    while (pulls.length < 10) {
         const pkmn = executeSinglePull();
-        if (pkmn) pulls.push(pkmn);
+        if (pkmn) {
+            pulls.push(pkmn);
+        }
     }
     return pulls;
 }
