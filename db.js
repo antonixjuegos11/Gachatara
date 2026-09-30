@@ -1,94 +1,98 @@
-// Base de Datos de Personajes (Kanto Gen 1 + Megas)
+// db.js - Carga dinámica de las 9 Generaciones y Megas vía PokeAPI
+
 const DATABASE = {
-    // RAREZA: COMUN (1ª Etapa Evolutiva)
-    común: [
-        { id: 1, name: "Bulbasaur", stage: 1, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/1.png" },
-        { id: 4, name: "Charmander", stage: 1, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/4.png" },
-        { id: 7, name: "Squirtle", stage: 1, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/7.png" },
-        { id: 10, name: "Caterpie", stage: 1, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/10.png" },
-        { id: 13, name: "Weedle", stage: 1, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/13.png" },
-        { id: 16, name: "Pidgey", stage: 1, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/16.png" },
-        { id: 19, name: "Rattata", stage: 1, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/19.png" },
-        { id: 23, name: "Ekans", stage: 1, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/23.png" },
-        { id: 25, name: "Pikachu", stage: 1, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/25.png" },
-        { id: 27, name: "Sandshrew", stage: 1, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/27.png" },
-        { id: 35, name: "Clefairy", stage: 1, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/35.png" },
-        { id: 37, name: "Vulpix", stage: 1, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/37.png" },
-        { id: 41, name: "Zubat", stage: 1, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/41.png" },
-        { id: 43, name: "Oddish", stage: 1, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/43.png" },
-        { id: 52, name: "Meowth", stage: 1, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/52.png" },
-        { id: 60, name: "Poliwag", stage: 1, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/60.png" },
-        { id: 63, name: "Abra", stage: 1, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/63.png" },
-        { id: 66, name: "Machop", stage: 1, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/66.png" },
-        { id: 74, name: "Geodude", stage: 1, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/74.png" },
-        { id: 92, name: "Gastly", stage: 1, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/92.png" },
-        { id: 129, name: "Magikarp", stage: 1, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/129.png" },
-        { id: 133, name: "Eevee", stage: 1, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/133.png" },
-        { id: 147, name: "Dratini", stage: 1, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/147.png" }
-    ],
-
-    // RAREZA: RARO (2ª Etapa Evolutiva + Monofásicos Básicos)
-    raro: [
-        { id: 2, name: "Ivysaur", stage: 2, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/2.png" },
-        { id: 5, name: "Charmeleon", stage: 2, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/5.png" },
-        { id: 8, name: "Wartortle", stage: 2, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/8.png" },
-        { id: 11, name: "Metapod", stage: 2, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/11.png" },
-        { id: 14, name: "Kakuna", stage: 2, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/14.png" },
-        { id: 17, name: "Pidgeotto", stage: 2, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/17.png" },
-        { id: 26, name: "Raichu", stage: 2, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/26.png" },
-        { id: 64, name: "Kadabra", stage: 2, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/64.png" },
-        { id: 67, name: "Machoke", stage: 2, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/67.png" },
-        { id: 75, name: "Graveler", stage: 2, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/75.png" },
-        { id: 83, name: "Farfetch'd", stage: "único", sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/83.png" },
-        { id: 93, name: "Haunter", stage: 2, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/93.png" },
-        { id: 95, name: "Onix", stage: "único", sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/95.png" },
-        { id: 114, name: "Tangela", stage: "único", sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/114.png" },
-        { id: 148, name: "Dragonair", stage: 2, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/148.png" }
-    ],
-
-    // RAREZA: ÉPICO (3ª Etapa Evolutiva + Monofásicos Potentes)
-    épico: [
-        { id: 3, name: "Venusaur", stage: 3, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/3.png" },
-        { id: 6, name: "Charizard", stage: 3, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/6.png" },
-        { id: 9, name: "Blastoise", stage: 3, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/9.png" },
-        { id: 12, name: "Butterfree", stage: 3, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/12.png" },
-        { id: 15, name: "Beedrill", stage: 3, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/15.png" },
-        { id: 18, name: "Pidgeot", stage: 3, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/18.png" },
-        { id: 65, name: "Alakazam", stage: 3, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/65.png" },
-        { id: 68, name: "Machamp", stage: 3, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/68.png" },
-        { id: 76, name: "Golem", stage: 3, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/76.png" },
-        { id: 94, name: "Gengar", stage: 3, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/94.png" },
-        { id: 123, name: "Scyther", stage: "único", sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/123.png" },
-        { id: 127, name: "Pinsir", stage: "único", sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/127.png" },
-        { id: 130, name: "Gyarados", stage: 2, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/130.png" },
-        { id: 131, name: "Lapras", stage: "único", sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/131.png" },
-        { id: 143, name: "Snorlax", stage: "único", sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/143.png" },
-        { id: 149, name: "Dragonite", stage: 3, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/149.png" }
-    ],
-
-    // RAREZA: LEGENDARIO (Legendarios y Singulares)
-    legendario: [
-        { id: 144, name: "Articuno", stage: "legendario", sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/144.png" },
-        { id: 145, name: "Zapdos", stage: "legendario", sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/145.png" },
-        { id: 146, name: "Moltres", stage: "legendario", sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/146.png" },
-        { id: 150, name: "Mewtwo", stage: "legendario", sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/150.png" },
-        { id: 151, name: "Mew", stage: "singular", sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/151.png" }
-    ],
-
-    // RAREZA: SECRETO (Megaevoluciones)
-    secreto: [
-        { id: 10033, name: "Mega-Venusaur", stage: "mega", sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/10033.png" },
-        { id: 10034, name: "Mega-Charizard X", stage: "mega", sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/10034.png" },
-        { id: 10035, name: "Mega-Charizard Y", stage: "mega", sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/10035.png" },
-        { id: 10036, name: "Mega-Blastoise", stage: "mega", sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/10036.png" },
-        { id: 10037, name: "Mega-Beedrill", stage: "mega", sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/10037.png" },
-        { id: 10038, name: "Mega-Pidgeot", stage: "mega", sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/10038.png" },
-        { id: 10039, name: "Mega-Alakazam", stage: "mega", sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/10039.png" },
-        { id: 10040, name: "Mega-Gengar", stage: "mega", sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/10040.png" },
-        { id: 10043, name: "Mega-Mewtwo X", stage: "mega", sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/10043.png" },
-        { id: 10044, name: "Mega-Mewtwo Y", stage: "mega", sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/10044.png" }
-    ]
+    comun: [],
+    raro: [],
+    epico: [],
+    legendario: [],
+    secreto: []
 };
 
-// Futura Base de Datos para Skins / Shiny (Preparada)
-const SKINS_DATABASE = [];
+// Asignación de rarezas basada en ID / Tipos de Pokémon
+function determineRarity(id, isLegendary, isMythical, isMega) {
+    if (isMega) return "secreto";
+    if (isLegendary || isMythical) return "legendario";
+    if (id % 5 === 0) return "epico";
+    if (id % 2 === 0) return "raro";
+    return "comun";
+}
+
+// Carga automática de Pokémon (Generaciones 1 a 9: IDs 1 al 1025 + Megas)
+async function loadFullDatabase() {
+    try {
+        console.log("Cargando base de datos completa de Pokémon...");
+        
+        // Petición a PokeAPI para obtener los primeros 1025 Pokémon (Gen 1 - Gen 9)
+        const response = await fetch('https://pokeapi.co/api/v2/pokemon?limit=1025');
+        const data = await response.json();
+
+        data.results.forEach((pkmn, index) => {
+            const id = index + 1;
+            
+            // Asignación aproximada de rareza según ID y Pokémon especiales conocidos
+            let rarity = "comun";
+            
+            // Legendarios/Míticos destacados (rangos y IDs específicos)
+            const isLegendaryOrMythical = 
+                (id >= 144 && id <= 151) || // Kanto
+                (id >= 243 && id <= 251) || // Johto
+                (id >= 377 && id <= 386) || // Hoenn
+                (id >= 480 && id <= 493) || // Sinnoh
+                (id >= 638 && id <= 649) || // Unova
+                (id >= 716 && id <= 721) || // Kalos
+                (id >= 785 && id <= 809) || // Alola
+                (id >= 888 && id <= 905) || // Galar
+                (id >= 1001 && id <= 1025); // Paldea
+
+            if (isLegendaryOrMythical) {
+                rarity = "legendario";
+            } else if (id % 7 === 0) {
+                rarity = "epico";
+            } else if (id % 3 === 0) {
+                rarity = "raro";
+            }
+
+            const pokemonObj = {
+                id: id,
+                name: pkmn.name.charAt(0).toUpperCase() + pkmn.name.slice(1),
+                stage: 1,
+                rarity: rarity,
+                sprite: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`
+            };
+
+            DATABASE[rarity].push(pokemonObj);
+        });
+
+        // Agregar Megas principales a la categoría Secreto
+        const megas = [
+            { id: 10033, name: "Mega Venusaur" },
+            { id: 10034, name: "Mega Charizard X" },
+            { id: 10035, name: "Mega Charizard Y" },
+            { id: 10036, name: "Mega Blastoise" },
+            { id: 10037, name: "Mega Alakazam" },
+            { id: 10038, name: "Mega Gengar" },
+            { id: 10043, name: "Mega Mewtwo X" },
+            { id: 10044, name: "Mega Mewtwo Y" },
+            { id: 10045, name: "Mega Lucario" },
+            { id: 10048, name: "Mega Rayquaza" },
+            { id: 10075, name: "Mega Rayquaza Alt" }
+        ];
+
+        megas.forEach(m => {
+            DATABASE.secreto.push({
+                id: m.id,
+                name: m.name,
+                stage: 4,
+                rarity: "secreto",
+                sprite: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${m.id}.png`
+            });
+        });
+
+        console.log("¡Base de datos cargada con éxito!", DATABASE);
+    } catch (error) {
+        console.error("Error cargando la base de datos de Pokémon:", error);
+    }
+}
+
+// Iniciar carga
+loadFullDatabase();
