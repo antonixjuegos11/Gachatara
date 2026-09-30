@@ -8,7 +8,7 @@ const DATABASE = {
     secreto: []
 };
 
-// Carga de Megas con IDs de PokeAPI perfectamente mapeados
+// Carga de Megas con IDs de PokeAPI perfectamente alineados con sus sprites reales
 function initSecretMegas() {
     DATABASE.secreto = [];
     const allMegas = [
@@ -55,12 +55,12 @@ function initSecretMegas() {
         { apiId: 10074, name: "Mega Metagross" },
         { apiId: 10075, name: "Mega Latias" },
         { apiId: 10076, name: "Mega Latios" },
-        { apiId: 10077, name: "Kyogre Primigenio" },
-        { apiId: 10078, name: "Groudon Primigenio" },
-        { apiId: 10079, name: "Mega Rayquaza" },
-        { apiId: 10087, name: "Mega Lopunny" },
-        { apiId: 10088, name: "Mega Audino" },
-        { apiId: 10089, name: "Mega Diancie" }
+        { apiId: 10077, name: "Mega Lopunny" },
+        { apiId: 10078, name: "Mega Rayquaza" },
+        { apiId: 10079, name: "Kyogre Primigenio" },
+        { apiId: 10080, name: "Groudon Primigenio" },
+        { apiId: 10087, name: "Mega Audino" },
+        { apiId: 10088, name: "Mega Diancie" }
     ];
 
     let nextDexId = 1026;

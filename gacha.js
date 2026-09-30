@@ -33,10 +33,10 @@ function selectBanner(genNumber) {
 function rollRarity() {
     const rand = Math.random() * 100;
     
-    if (rand < 3) return "secreto";       // 3% Mega / Secreto
-    if (rand < 8) return "legendario";    // 5% Legendario
-    if (rand < 25) return "epico";        // 17% Épico
-    if (rand < 55) return "raro";         // 30% Raro
+    if (rand < 1) return "secreto";       // 3% Mega / Secreto
+    if (rand < 5) return "legendario";    // 5% Legendario
+    if (rand < 20) return "epico";        // 17% Épico
+    if (rand < 50) return "raro";         // 30% Raro
     return "comun";                       // 45% Común
 }
 
