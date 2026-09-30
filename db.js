@@ -8,7 +8,7 @@ const DATABASE = {
     secreto: []
 };
 
-// Carga de Megas inmediata para evitar retrasos en las tiradas
+// Carga de Megas con IDs de PokeAPI perfectamente mapeados
 function initSecretMegas() {
     DATABASE.secreto = [];
     const allMegas = [
@@ -55,8 +55,8 @@ function initSecretMegas() {
         { apiId: 10074, name: "Mega Metagross" },
         { apiId: 10075, name: "Mega Latias" },
         { apiId: 10076, name: "Mega Latios" },
-        { apiId: 10077, name: "Groudon Primigenio" },
-        { apiId: 10078, name: "Kyogre Primigenio" },
+        { apiId: 10077, name: "Kyogre Primigenio" },
+        { apiId: 10078, name: "Groudon Primigenio" },
         { apiId: 10079, name: "Mega Rayquaza" },
         { apiId: 10087, name: "Mega Lopunny" },
         { apiId: 10088, name: "Mega Audino" },
@@ -76,24 +76,21 @@ function initSecretMegas() {
     });
 }
 
-// Carga automática de Pokémon y asignación de rarezas ajustada
+// Carga automática de Pokémon
 async function loadFullDatabase() {
     try {
-        console.log("Cargando base de datos completa con Ultraentes y Unietapas ajustados...");
+        console.log("Cargando base de datos completa...");
         
         DATABASE.comun = [];
         DATABASE.raro = [];
         DATABASE.epico = [];
         DATABASE.legendario = [];
         
-        // Inicializar Megas primero
         initSecretMegas();
 
-        // 1. Obtener la lista base de los 1025 Pokémon
         const response = await fetch('https://pokeapi.co/api/v2/pokemon?limit=1025');
         const data = await response.json();
 
-        // Mapa de almacenamiento en caché para cadenas evolutivas ya consultadas
         const evoChainCache = new Map();
 
         const pokemonPromises = data.results.map(async (pkmn, index) => {
@@ -105,13 +102,11 @@ async function loadFullDatabase() {
 
                 let rarity = "comun";
 
-                // Identification de Ultraentes (IDs #793-#800, #803-#806) y Legendarios/Míticos
                 const isUltraBeast = (id >= 793 && id <= 800) || (id >= 803 && id <= 806);
                 
                 if (specData.is_legendary || specData.is_mythical || isUltraBeast) {
                     rarity = "legendario";
                 } else if (specData.evolution_chain && specData.evolution_chain.url) {
-                    // Consulta o lectura desde caché
                     const evoUrl = specData.evolution_chain.url;
                     let chainData;
                     
@@ -127,13 +122,10 @@ async function loadFullDatabase() {
                     const hasEvolutions = chain.evolves_to && chain.evolves_to.length > 0;
 
                     if (!hasEvolutions) {
-                        // Unietapa (Heracross, Lapras, Aerodactyl, etc.) -> RARO
                         rarity = "raro";
                     } else if (chain.species.name === specData.name) {
-                        // Primera etapa evolutiva -> COMÚN
                         rarity = "comun";
                     } else {
-                        // Comprobar si es 2ª etapa o 3ª etapa
                         const isStage2 = chain.evolves_to.some(e => e.species.name === specData.name);
                         rarity = isStage2 ? "raro" : "epico";
                     }
@@ -159,7 +151,6 @@ async function loadFullDatabase() {
 
         const loadedPokemon = await Promise.all(pokemonPromises);
 
-        // Agrupar en la base de datos
         loadedPokemon.forEach(pkmn => {
             if (DATABASE[pkmn.rarity]) {
                 DATABASE[pkmn.rarity].push(pkmn);
@@ -172,5 +163,4 @@ async function loadFullDatabase() {
     }
 }
 
-// Iniciar
 loadFullDatabase();
