@@ -21,6 +21,7 @@
         <nav class="nav-bar">
             <button class="nav-tab active" onclick="switchTab('lobby')">Lobby</button>
             <button class="nav-tab" onclick="switchTab('invocacion')">Invocación</button>
+            <button class="nav-tab" onclick="switchTab('dex')">Dex</button>
         </nav>
     </header>
 
@@ -62,6 +63,24 @@
             <div id="gacha-results" class="results-grid"></div>
         </div>
     </main>
+
+    <!-- ZONA DE COLECCIÓN (DEX) -->
+<main id="tab-dex" class="lobby-container tab-content">
+    <div class="dex-frame">
+        <div class="dex-header">
+            <h2 class="dex-title">POKÉDEX KANTO</h2>
+            <div class="dex-progress-wrapper">
+                <span id="dex-counter">0 / 151 (0%)</span>
+                <div class="progress-bar-bg">
+                    <div id="dex-progress-fill" class="progress-bar-fill" style="width: 0%;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Grid donde se pintan los 151 Pokémon -->
+        <div id="dex-grid" class="dex-grid"></div>
+    </div>
+</main>
 
     <!-- Carga de Scripts en Orden -->
     <script src="db.js"></script>

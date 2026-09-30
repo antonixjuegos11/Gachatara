@@ -395,3 +395,120 @@ body {
         transform: translateY(0) rotateY(0deg) scale(1);
     }
 }
+/* =========================================
+   ESTILOS PESTAÑA DEX / COLECCIÓN
+========================================= */
+.dex-frame {
+    width: 100%;
+    max-width: 1100px;
+    background: var(--panel-bg);
+    border: 1px solid rgba(0, 242, 254, 0.25);
+    border-radius: 16px;
+    padding: 2rem;
+    box-shadow: 0 0 35px rgba(0, 0, 0, 0.8);
+    margin: 0 auto;
+}
+
+.dex-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.dex-title {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 2rem;
+    color: var(--border-cyan);
+    letter-spacing: 2px;
+}
+
+.dex-progress-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.5rem;
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 700;
+}
+
+.progress-bar-bg {
+    width: 250px;
+    height: 12px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--border-cyan);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--border-cyan), #00f2fe);
+    box-shadow: 0 0 10px var(--border-cyan);
+    transition: width 0.4s ease;
+}
+
+.dex-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: 1rem;
+    max-height: 60vh;
+    overflow-y: auto;
+    padding-right: 0.5rem;
+}
+
+/* Tarjeta individual en la Dex */
+.dex-card {
+    background: rgba(10, 13, 26, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 0.8rem 0.5rem;
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+/* Estado NO OBTENIDO (Silueta oscura) */
+.dex-card.locked img {
+    filter: brightness(0) drop-shadow(0 0 2px rgba(255, 255, 255, 0.2));
+    opacity: 0.4;
+}
+
+.dex-card.locked .dex-number,
+.dex-card.locked .dex-name {
+    color: var(--text-secondary);
+    opacity: 0.5;
+}
+
+/* Estado OBTENIDO */
+.dex-card.unlocked {
+    border-color: var(--border-cyan);
+    box-shadow: 0 0 12px rgba(0, 242, 254, 0.2);
+}
+
+.dex-card.unlocked img {
+    filter: none;
+}
+
+.dex-card img {
+    width: 65px;
+    height: 65px;
+    object-fit: contain;
+}
+
+.dex-number {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    font-weight: 700;
+}
+
+.dex-name {
+    font-size: 0.85rem;
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 700;
+    margin-top: 0.2rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
