@@ -41,16 +41,30 @@ animate();
 // COLECCIÓN GLOBAL Y POKÉDEX
 // =========================================
 
-// Inventario global del jugador (guarda los ID únicos obtenidos)
+// Inventario global del jugador
 const playerCollection = new Set();
 
-// Registrar Pokémon desbloqueados
+// Función auxiliar para obtener la lista completa de Pokémon desde tu DATABASE
+function getAllPokemonFromDB() {
+    if (typeof DATABASE === 'undefined') return [];
+    
+    let allPkmn = [];
+    // Recorremos todas las rarezas de tu objeto DATABASE (comun, raro, epico, etc.)
+    Object.keys(DATABASE).forEach(rarityKey => {
+        if (Array.isArray(DATABASE[rarityKey])) {
+            allPkmn = allPkmn.concat(DATABASE[rarityKey]);
+        }
+    });
+
+    // Ordenamos por ID de Pokédex de menor a mayor
+    return allPkmn.sort((a, b) => a.id - b.id);
+}
+
+// Registrar Pokémon desbloqueados tras tirar en el Gacha
 function registerUnlockedPokemon(pulls) {
     pulls.forEach(pkmn => {
-        if (!pkmn) return;
-        const pkmnId = pkmn.id || pkmn.num || pkmn.pokedexId;
-        if (pkmnId !== undefined) {
-            playerCollection.add(Number(pkmnId));
+        if (pkmn && pkmn.id !== undefined) {
+            playerCollection.add(Number(pkmn.id));
         }
     });
 }
@@ -61,33 +75,32 @@ function renderDex() {
     const counter = document.getElementById('dex-counter');
     const fill = document.getElementById('dex-progress-fill');
     
-    // Detecta automáticamente cómo se llama tu array en db.js o gacha.js
-    const db = window.pokemonDB || window.POKEMON_DATABASE || window.pokemons || (typeof pokemonDB !== 'undefined' ? pokemonDB : []);
-
     if (!grid) return;
     grid.innerHTML = '';
 
-    if (!db || db.length === 0) {
-        grid.innerHTML = '<p style="color: var(--text-secondary); grid-column: 1/-1;">No se detectó la base de datos de Pokémon.</p>';
+    const dbList = getAllPokemonFromDB();
+
+    if (dbList.length === 0) {
+        grid.innerHTML = '<p style="color: var(--text-secondary); grid-column: 1/-1;">Cargando base de datos de Pokémon...</p>';
         return;
     }
 
-    const total = db.length;
+    const total = dbList.length;
     const unlockedCount = playerCollection.size;
     const percentage = Math.round((unlockedCount / total) * 100);
 
     if (counter) counter.innerText = `${unlockedCount} / ${total} (${percentage}%)`;
     if (fill) fill.style.width = `${percentage}%`;
 
-    db.forEach(pkmn => {
-        const pkmnId = Number(pkmn.id || pkmn.num || pkmn.pokedexId);
+    dbList.forEach(pkmn => {
+        const pkmnId = Number(pkmn.id);
         const isUnlocked = playerCollection.has(pkmnId);
 
         const card = document.createElement('div');
         card.className = `dex-card ${isUnlocked ? 'unlocked' : 'locked'}`;
         card.innerHTML = `
             <div class="dex-number">#${String(pkmnId).padStart(3, '0')}</div>
-            <img src="${pkmn.sprite || pkmn.image}" alt="${pkmn.name}">
+            <img src="${pkmn.sprite}" alt="${pkmn.name}">
             <div class="dex-name">${isUnlocked ? pkmn.name : '???'}</div>
         `;
         
@@ -106,7 +119,6 @@ function switchTab(tabId, event) {
     const activeTab = document.getElementById(`tab-${tabId}`);
     if (activeTab) activeTab.classList.add('active');
 
-    // Ilumina el botón activo en la barra superior
     if (event && event.currentTarget) {
         event.currentTarget.classList.add('active');
     } else {
@@ -116,13 +128,13 @@ function switchTab(tabId, event) {
         if (tabId === 'dex' && navBtns[2]) navBtns[2].classList.add('active');
     }
 
-    // Limpia la pantalla de tiradas al cambiar de pestaña
+    // Limpiar pantalla de invocación al salir
     if (tabId !== 'invocacion') {
         const resultsContainer = document.getElementById('gacha-results');
         if (resultsContainer) resultsContainer.innerHTML = '';
     }
 
-    // Carga la Dex al cambiar a la pestaña Dex
+    // Cargar Dex al entrar a la pestaña Dex
     if (tabId === 'dex') {
         renderDex();
     }
@@ -149,10 +161,10 @@ function pullGacha(amount) {
         }
     }
 
-    // Guarda los Pokémon tirados en la colección
+    // Guardar Pokémon obtenidos en la colección de la Pokédex
     registerUnlockedPokemon(pulls);
 
-    // Dibuja las cartas obtenidas
+    // Dibujar resultados en pantalla
     pulls.forEach((pkmn, index) => {
         if (!pkmn) return;
         const card = document.createElement('div');
@@ -160,7 +172,7 @@ function pullGacha(amount) {
         card.style.animationDelay = `${index * 0.12}s`;
 
         card.innerHTML = `
-            <img src="${pkmn.sprite || pkmn.image}" alt="${pkmn.name}">
+            <img src="${pkmn.sprite}" alt="${pkmn.name}">
             <h4>${pkmn.name}</h4>
             <div class="card-rarity">${pkmn.rarity || 'común'}</div>
         `;
