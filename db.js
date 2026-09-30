@@ -1,4 +1,4 @@
-// db.js - Carga dinámica de las 9 Generaciones con Rarezas Reales por Especie y Evolución
+// db.js - Carga dinámica de las 9 Generaciones, Ultraentes Legendarios y Unietapas Raros
 
 const DATABASE = {
     comun: [],
@@ -8,10 +8,10 @@ const DATABASE = {
     secreto: []
 };
 
-// Carga automática de Pokémon y asignación de rareza real
+// Carga automática de Pokémon y asignación de rarezas ajustada
 async function loadFullDatabase() {
     try {
-        console.log("Cargando base de datos completa de las 9 Generaciones...");
+        console.log("Cargando base de datos completa con Ultraentes y Unietapas ajustados...");
         
         DATABASE.comun = [];
         DATABASE.raro = [];
@@ -23,42 +23,48 @@ async function loadFullDatabase() {
         const response = await fetch('https://pokeapi.co/api/v2/pokemon?limit=1025');
         const data = await response.json();
 
-        // Promesas concurrentes para consultar el estatus oficial de especie
+        // Consultas concurrentes a PokeAPI
         const pokemonPromises = data.results.map(async (pkmn, index) => {
             const id = index + 1;
             
             try {
-                // Consultar datos de especie para verificar si es legendario/mítico o su cadena
                 const specRes = await fetch(`https://pokeapi.co/api/v2/pokemon-species/${id}/`);
                 const specData = await specRes.json();
 
                 let rarity = "comun";
 
-                if (specData.is_legendary || specData.is_mythical) {
+                // Ultraentes, Legendarios y Míticos -> LEGENDARIO
+                // (Los Ultraentes son identificados como legendarios/míticos en especie o por rango de Pokédex #793-#800)
+                const isUltraBeast = (id >= 793 && id <= 800) || id === 803 || id === 804 || id === 805 || id === 806;
+                
+                if (specData.is_legendary || specData.is_mythical || isUltraBeast) {
                     rarity = "legendario";
                 } else {
-                    // Determinar por etapa evolutiva
+                    // Determinar por cadena evolutiva
                     const evoRes = await fetch(specData.evolution_chain.url);
                     const evoData = await evoRes.json();
 
-                    let stage = 1;
                     let chain = evoData.chain;
+                    const hasEvolutions = chain.evolves_to && chain.evolves_to.length > 0;
 
-                    if (chain.species.name === specData.name) {
-                        stage = 1; // Etapa base -> Común
+                    // Si NO tiene evoluciones (etapa única / no evoluciona) -> RARO
+                    if (!hasEvolutions) {
+                        rarity = "raro";
+                    } else if (chain.species.name === specData.name) {
+                        // Etapa Base de una cadena de evoluciones -> COMÚN
+                        rarity = "comun";
                     } else {
-                        // Buscar si está en la 2ª o 3ª etapa
-                        let foundInStage2 = chain.evolves_to.some(e => e.species.name === specData.name);
-                        if (foundInStage2) {
-                            stage = 2; // Raro
+                        // Comprobar si es 2ª etapa (Raro) o 3ª etapa/final larga (Épico)
+                        let isStage2 = chain.evolves_to.some(e => e.species.name === specData.name);
+                        if (isStage2) {
+                            // Si esta 2ª etapa aún evoluciona a otra más -> RARO
+                            // Si es la evolución final de 2 etapas -> RARO
+                            rarity = "raro";
                         } else {
-                            stage = 3; // Épico (3ª etapa o final de línea larga)
+                            // 3ª etapa evolutiva -> ÉPICO
+                            rarity = "epico";
                         }
                     }
-
-                    if (stage === 1) rarity = "comun";
-                    else if (stage === 2) rarity = "raro";
-                    else if (stage === 3) rarity = "epico";
                 }
 
                 return {
@@ -69,30 +75,20 @@ async function loadFullDatabase() {
                     sprite: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`
                 };
             } catch (err) {
-                // Fallback de seguridad en caso de fallo de red puntual
-                let fallbackRarity = "comun";
-                if ((id >= 144 && id <= 151) || (id >= 243 && id <= 251) || (id >= 377 && id <= 386) || 
-                    (id >= 480 && id <= 493) || (id >= 638 && id <= 649) || (id >= 716 && id <= 721) || 
-                    (id >= 785 && id <= 809) || (id >= 888 && id <= 905) || (id >= 1001 && id <= 1025)) {
-                    fallbackRarity = "legendario";
-                } else if (id % 3 === 0) {
-                    fallbackRarity = "raro";
-                }
-                
+                // Fallback de seguridad
                 return {
                     id: id,
                     name: pkmn.name.charAt(0).toUpperCase() + pkmn.name.slice(1),
                     stage: 1,
-                    rarity: fallbackRarity,
+                    rarity: "comun",
                     sprite: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`
                 };
             }
         });
 
-        // Esperar a resolver todas las especies
         const loadedPokemon = await Promise.all(pokemonPromises);
 
-        // Agrupar en DATABASE
+        // Agrupar en la base de datos
         loadedPokemon.forEach(pkmn => {
             DATABASE[pkmn.rarity].push(pkmn);
         });
@@ -162,11 +158,11 @@ async function loadFullDatabase() {
             nextDexId++;
         });
 
-        console.log("¡Base de datos cargada con éxito y rarezas precisas por evolución!", DATABASE);
+        console.log("¡Base de datos actualizada con Ultraentes en Legendarios y Unietapas en Raros!", DATABASE);
     } catch (error) {
-        console.error("Error cargando la base de datos de Pokémon:", error);
+        console.error("Error cargando la base de datos:", error);
     }
 }
 
-// Iniciar carga
+// Iniciar
 loadFullDatabase();
