@@ -51,8 +51,22 @@
     <!-- ZONA DE INVOCACIÓN (GACHA) -->
     <main id="tab-invocacion" class="lobby-container tab-content">
         <div class="gacha-frame">
-            <h2 class="gacha-banner-title">BANNER KANTO GEN 1</h2>
-            <p class="gacha-subtitle">¡Involucra Pokémon de 1ª Generación y Megaevoluciones Secretas!</p>
+            
+            <!-- SELECTOR DE GENERACIÓN (BANNERS) -->
+            <div class="banner-selector">
+                <button id="btn-gen-1" class="banner-btn active" onclick="selectBanner(1)">Gen 1 (Kanto)</button>
+                <button id="btn-gen-2" class="banner-btn" onclick="selectBanner(2)">Gen 2 (Johto)</button>
+                <button id="btn-gen-3" class="banner-btn" onclick="selectBanner(3)">Gen 3 (Hoenn)</button>
+                <button id="btn-gen-4" class="banner-btn" onclick="selectBanner(4)">Gen 4 (Sinnoh)</button>
+                <button id="btn-gen-5" class="banner-btn" onclick="selectBanner(5)">Gen 5 (Unova)</button>
+                <button id="btn-gen-6" class="banner-btn" onclick="selectBanner(6)">Gen 6 (Kalos)</button>
+                <button id="btn-gen-7" class="banner-btn" onclick="selectBanner(7)">Gen 7 (Alola)</button>
+                <button id="btn-gen-8" class="banner-btn" onclick="selectBanner(8)">Gen 8 (Galar)</button>
+                <button id="btn-gen-9" class="banner-btn" onclick="selectBanner(9)">Gen 9 (Paldea)</button>
+            </div>
+
+            <h2 id="banner-title" class="gacha-banner-title">BANNER GENERACIÓN 1 (KANTO)</h2>
+            <p class="gacha-subtitle">¡Involucra Pokémon de todas las generaciones y Megaevoluciones Secretas!</p>
             
             <div class="gacha-buttons">
                 <button class="btn-pull" onclick="pullGacha(1)">Tirada x1 (1 Ticket)</button>
@@ -65,22 +79,22 @@
     </main>
 
     <!-- ZONA DE COLECCIÓN (DEX) -->
-<main id="tab-dex" class="lobby-container tab-content">
-    <div class="dex-frame">
-        <div class="dex-header">
-            <h2 class="dex-title">POKÉDEX KANTO</h2>
-            <div class="dex-progress-wrapper">
-                <span id="dex-counter">0 / 151 (0%)</span>
-                <div class="progress-bar-bg">
-                    <div id="dex-progress-fill" class="progress-bar-fill" style="width: 0%;"></div>
+    <main id="tab-dex" class="lobby-container tab-content">
+        <div class="dex-frame">
+            <div class="dex-header">
+                <h2 class="dex-title">POKÉDEX NACIONAL</h2>
+                <div class="dex-progress-wrapper">
+                    <span id="dex-counter">0 / 1074 (0%)</span>
+                    <div class="progress-bar-bg">
+                        <div id="dex-progress-fill" class="progress-bar-fill" style="width: 0%;"></div>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <!-- Grid donde se pintan los 151 Pokémon -->
-        <div id="dex-grid" class="dex-grid"></div>
-    </div>
-</main>
+            <!-- Grid donde se pintan todos los Pokémon -->
+            <div id="dex-grid" class="dex-grid"></div>
+        </div>
+    </main>
 
     <!-- Carga de Scripts en Orden -->
     <script src="db.js"></script>

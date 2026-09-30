@@ -512,3 +512,38 @@ body {
     overflow: hidden;
     text-overflow: ellipsis;
 }
+/* Selector de Banners / Generaciones */
+.banner-selector {
+    display: flex;
+    gap: 0.5rem;
+    overflow-x: auto;
+    padding: 0.5rem 0 1rem 0;
+    margin-bottom: 1.5rem;
+    scrollbar-width: thin;
+}
+
+.banner-btn {
+    background: rgba(10, 13, 26, 0.8);
+    border: 1px solid rgba(0, 242, 254, 0.3);
+    color: var(--text-secondary);
+    padding: 0.6rem 1.2rem;
+    border-radius: 8px;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.85rem;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.banner-btn:hover {
+    border-color: var(--border-cyan);
+    color: #fff;
+    box-shadow: 0 0 10px rgba(0, 242, 254, 0.3);
+}
+
+.banner-btn.active {
+    background: linear-gradient(135deg, rgba(0, 242, 254, 0.2), rgba(0, 120, 255, 0.4));
+    border-color: var(--border-cyan);
+    color: #fff;
+    box-shadow: 0 0 15px rgba(0, 242, 254, 0.5);
+}
