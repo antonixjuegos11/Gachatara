@@ -1,4 +1,4 @@
-// db.js - Carga dinámica de las 9 Generaciones y TODAS las Megas (IDs correlativos)
+// db.js - Carga dinámica de las 9 Generaciones con Rarezas Reales por Especie y Evolución
 
 const DATABASE = {
     comun: [],
@@ -8,50 +8,96 @@ const DATABASE = {
     secreto: []
 };
 
-// Carga automática de Pokémon (Generaciones 1 a 9 + 49 Megas/Primales)
+// Carga automática de Pokémon y asignación de rareza real
 async function loadFullDatabase() {
     try {
-        console.log("Cargando base de datos completa...");
+        console.log("Cargando base de datos completa de las 9 Generaciones...");
         
-        // 1. Obtener los 1025 Pokémon (Gen 1 - Gen 9)
+        DATABASE.comun = [];
+        DATABASE.raro = [];
+        DATABASE.epico = [];
+        DATABASE.legendario = [];
+        DATABASE.secreto = [];
+
+        // 1. Obtener la lista base de los 1025 Pokémon
         const response = await fetch('https://pokeapi.co/api/v2/pokemon?limit=1025');
         const data = await response.json();
 
-        data.results.forEach((pkmn, index) => {
+        // Promesas concurrentes para consultar el estatus oficial de especie
+        const pokemonPromises = data.results.map(async (pkmn, index) => {
             const id = index + 1;
-            let rarity = "comun";
             
-            // Filtro de Legendarios y Míticos
-            const isLegendaryOrMythical = 
-                (id >= 144 && id <= 151) || // Gen 1
-                (id >= 243 && id <= 251) || // Gen 2
-                (id >= 377 && id <= 386) || // Gen 3
-                (id >= 480 && id <= 493) || // Gen 4
-                (id >= 638 && id <= 649) || // Gen 5
-                (id >= 716 && id <= 721) || // Gen 6
-                (id >= 785 && id <= 809) || // Gen 7
-                (id >= 888 && id <= 905) || // Gen 8
-                (id >= 1001 && id <= 1025); // Gen 9
+            try {
+                // Consultar datos de especie para verificar si es legendario/mítico o su cadena
+                const specRes = await fetch(`https://pokeapi.co/api/v2/pokemon-species/${id}/`);
+                const specData = await specRes.json();
 
-            if (isLegendaryOrMythical) {
-                rarity = "legendario";
-            } else if (id % 7 === 0) {
-                rarity = "epico";
-            } else if (id % 3 === 0) {
-                rarity = "raro";
+                let rarity = "comun";
+
+                if (specData.is_legendary || specData.is_mythical) {
+                    rarity = "legendario";
+                } else {
+                    // Determinar por etapa evolutiva
+                    const evoRes = await fetch(specData.evolution_chain.url);
+                    const evoData = await evoRes.json();
+
+                    let stage = 1;
+                    let chain = evoData.chain;
+
+                    if (chain.species.name === specData.name) {
+                        stage = 1; // Etapa base -> Común
+                    } else {
+                        // Buscar si está en la 2ª o 3ª etapa
+                        let foundInStage2 = chain.evolves_to.some(e => e.species.name === specData.name);
+                        if (foundInStage2) {
+                            stage = 2; // Raro
+                        } else {
+                            stage = 3; // Épico (3ª etapa o final de línea larga)
+                        }
+                    }
+
+                    if (stage === 1) rarity = "comun";
+                    else if (stage === 2) rarity = "raro";
+                    else if (stage === 3) rarity = "epico";
+                }
+
+                return {
+                    id: id,
+                    name: pkmn.name.charAt(0).toUpperCase() + pkmn.name.slice(1),
+                    stage: rarity === 'comun' ? 1 : rarity === 'raro' ? 2 : 3,
+                    rarity: rarity,
+                    sprite: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`
+                };
+            } catch (err) {
+                // Fallback de seguridad en caso de fallo de red puntual
+                let fallbackRarity = "comun";
+                if ((id >= 144 && id <= 151) || (id >= 243 && id <= 251) || (id >= 377 && id <= 386) || 
+                    (id >= 480 && id <= 493) || (id >= 638 && id <= 649) || (id >= 716 && id <= 721) || 
+                    (id >= 785 && id <= 809) || (id >= 888 && id <= 905) || (id >= 1001 && id <= 1025)) {
+                    fallbackRarity = "legendario";
+                } else if (id % 3 === 0) {
+                    fallbackRarity = "raro";
+                }
+                
+                return {
+                    id: id,
+                    name: pkmn.name.charAt(0).toUpperCase() + pkmn.name.slice(1),
+                    stage: 1,
+                    rarity: fallbackRarity,
+                    sprite: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`
+                };
             }
-
-            DATABASE[rarity].push({
-                id: id,
-                name: pkmn.name.charAt(0).toUpperCase() + pkmn.name.slice(1),
-                stage: 1,
-                rarity: rarity,
-                sprite: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`
-            });
         });
 
-        // 2. Mapeo de Megas con IDs de Pokédex del juego (a partir del 1026)
-        // Guardamos el `apiId` de la PokeAPI solo para descargar el sprite correcto
+        // Esperar a resolver todas las especies
+        const loadedPokemon = await Promise.all(pokemonPromises);
+
+        // Agrupar en DATABASE
+        loadedPokemon.forEach(pkmn => {
+            DATABASE[pkmn.rarity].push(pkmn);
+        });
+
+        // 2. Cargar las 48 Megas (Categoría Secreto)
         const allMegas = [
             { apiId: 10033, name: "Mega Venusaur" },
             { apiId: 10034, name: "Mega Charizard X" },
@@ -105,10 +151,9 @@ async function loadFullDatabase() {
         ];
 
         let nextDexId = 1026;
-
         allMegas.forEach(m => {
             DATABASE.secreto.push({
-                id: nextDexId, // ID limpio y ordenado para tu juego (1026, 1027, etc.)
+                id: nextDexId,
                 name: m.name,
                 stage: 4,
                 rarity: "secreto",
@@ -117,7 +162,7 @@ async function loadFullDatabase() {
             nextDexId++;
         });
 
-        console.log("¡Base de datos cargada y ordenada hasta el #" + (nextDexId - 1) + "!", DATABASE);
+        console.log("¡Base de datos cargada con éxito y rarezas precisas por evolución!", DATABASE);
     } catch (error) {
         console.error("Error cargando la base de datos de Pokémon:", error);
     }
