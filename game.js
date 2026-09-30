@@ -41,15 +41,14 @@ animate();
 // COLECCIÓN GLOBAL Y POKÉDEX
 // =========================================
 
-// Inventario global del jugador
+// Inventario global del jugador (IDs obtenidos)
 const playerCollection = new Set();
 
-// Función auxiliar para obtener la lista completa de Pokémon desde tu DATABASE
+// Función auxiliar para obtener la lista completa de Pokémon desde DATABASE
 function getAllPokemonFromDB() {
     if (typeof DATABASE === 'undefined') return [];
     
     let allPkmn = [];
-    // Recorremos todas las rarezas de tu objeto DATABASE (comun, raro, epico, etc.)
     Object.keys(DATABASE).forEach(rarityKey => {
         if (Array.isArray(DATABASE[rarityKey])) {
             allPkmn = allPkmn.concat(DATABASE[rarityKey]);
@@ -69,7 +68,7 @@ function registerUnlockedPokemon(pulls) {
     });
 }
 
-// Renderizar la Pokedéx
+// Renderizar la Pokédex
 function renderDex() {
     const grid = document.getElementById('dex-grid');
     const counter = document.getElementById('dex-counter');
@@ -164,17 +163,25 @@ function pullGacha(amount) {
     // Guardar Pokémon obtenidos en la colección de la Pokédex
     registerUnlockedPokemon(pulls);
 
-    // Dibujar resultados en pantalla
+    // Dibujar resultados en pantalla con clases de rareza normalizadas para el CSS
     pulls.forEach((pkmn, index) => {
         if (!pkmn) return;
+
+        // Limpiar la cadena de rareza (remueve tildes para evitar desajustes en el CSS)
+        const rawRarity = pkmn.rarity || 'comun';
+        const cleanRarityClass = rawRarity
+            .toLowerCase()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "");
+
         const card = document.createElement('div');
-        card.className = `card-pokemon ${pkmn.rarity || 'común'}`;
+        card.className = `card-pokemon ${cleanRarityClass}`;
         card.style.animationDelay = `${index * 0.12}s`;
 
         card.innerHTML = `
             <img src="${pkmn.sprite}" alt="${pkmn.name}">
             <h4>${pkmn.name}</h4>
-            <div class="card-rarity">${pkmn.rarity || 'común'}</div>
+            <div class="card-rarity">${rawRarity.toUpperCase()}</div>
         `;
         resultsContainer.appendChild(card);
     });
