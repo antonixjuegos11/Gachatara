@@ -1,4 +1,4 @@
-// db.js - Carga dinámica de las 9 Generaciones y TODAS las Megas vía PokeAPI
+// db.js - Carga dinámica de las 9 Generaciones y TODAS las Megas (IDs correlativos)
 
 const DATABASE = {
     comun: [],
@@ -8,7 +8,7 @@ const DATABASE = {
     secreto: []
 };
 
-// Carga automática de Pokémon (Generaciones 1 a 9 + 48 Megas)
+// Carga automática de Pokémon (Generaciones 1 a 9 + 49 Megas/Primales)
 async function loadFullDatabase() {
     try {
         console.log("Cargando base de datos completa...");
@@ -21,7 +21,7 @@ async function loadFullDatabase() {
             const id = index + 1;
             let rarity = "comun";
             
-            // Filtro de Legendarios y Míticos por rangos de Pokedex
+            // Filtro de Legendarios y Míticos
             const isLegendaryOrMythical = 
                 (id >= 144 && id <= 151) || // Gen 1
                 (id >= 243 && id <= 251) || // Gen 2
@@ -50,70 +50,74 @@ async function loadFullDatabase() {
             });
         });
 
-        // 2. Lista Completa de TODAS las MegaEvoluciones (IDs Oficiales de la PokeAPI)
+        // 2. Mapeo de Megas con IDs de Pokédex del juego (a partir del 1026)
+        // Guardamos el `apiId` de la PokeAPI solo para descargar el sprite correcto
         const allMegas = [
-            { id: 10033, name: "Mega Venusaur" },
-            { id: 10034, name: "Mega Charizard X" },
-            { id: 10035, name: "Mega Charizard Y" },
-            { id: 10036, name: "Mega Blastoise" },
-            { id: 10037, name: "Mega Alakazam" },
-            { id: 10038, name: "Mega Gengar" },
-            { id: 10039, name: "Mega Kangaskhan" },
-            { id: 10040, name: "Mega Pinsir" },
-            { id: 10041, name: "Mega Gyarados" },
-            { id: 10042, name: "Mega Aerodactyl" },
-            { id: 10043, name: "Mega Mewtwo X" },
-            { id: 10044, name: "Mega Mewtwo Y" },
-            { id: 10045, name: "Mega Ampharos" },
-            { id: 10046, name: "Mega Scizor" },
-            { id: 10047, name: "Mega Heracross" },
-            { id: 10048, name: "Mega Houndoom" },
-            { id: 10049, name: "Mega Tyranitar" },
-            { id: 10050, name: "Mega Blaziken" },
-            { id: 10051, name: "Mega Gardevoir" },
-            { id: 10052, name: "Mega Mawile" },
-            { id: 10053, name: "Mega Aggron" },
-            { id: 10054, name: "Mega Medicham" },
-            { id: 10055, name: "Mega Manectric" },
-            { id: 10056, name: "Mega Banette" },
-            { id: 10057, name: "Mega Absol" },
-            { id: 10058, name: "Mega Garchomp" },
-            { id: 10059, name: "Mega Lucario" },
-            { id: 10060, name: "Mega Abomasnow" },
-            { id: 10062, name: "Mega Beedrill" },
-            { id: 10063, name: "Mega Pidgeot" },
-            { id: 10064, name: "Mega Slowbro" },
-            { id: 10065, name: "Mega Steelix" },
-            { id: 10066, name: "Mega Sceptile" },
-            { id: 10067, name: "Mega Swampert" },
-            { id: 10068, name: "Mega Sableye" },
-            { id: 10069, name: "Mega Sharpedo" },
-            { id: 10070, name: "Mega Camerupt" },
-            { id: 10071, name: "Mega Altaria" },
-            { id: 10072, name: "Mega Glalie" },
-            { id: 10073, name: "Mega Salamence" },
-            { id: 10074, name: "Mega Metagross" },
-            { id: 10075, name: "Mega Latias" },
-            { id: 10076, name: "Mega Latios" },
-            { id: 10077, name: "Groudon Primigenio" },
-            { id: 10078, name: "Kyogre Primigenio" },
-            { id: 10079, name: "Mega Rayquaza" },
-            { id: 10087, name: "Mega Lopunny" },
-            { id: 10088, name: "Mega Audino" },
-            { id: 10089, name: "Mega Diancie" }
+            { apiId: 10033, name: "Mega Venusaur" },
+            { apiId: 10034, name: "Mega Charizard X" },
+            { apiId: 10035, name: "Mega Charizard Y" },
+            { apiId: 10036, name: "Mega Blastoise" },
+            { apiId: 10037, name: "Mega Alakazam" },
+            { apiId: 10038, name: "Mega Gengar" },
+            { apiId: 10039, name: "Mega Kangaskhan" },
+            { apiId: 10040, name: "Mega Pinsir" },
+            { apiId: 10041, name: "Mega Gyarados" },
+            { apiId: 10042, name: "Mega Aerodactyl" },
+            { apiId: 10043, name: "Mega Mewtwo X" },
+            { apiId: 10044, name: "Mega Mewtwo Y" },
+            { apiId: 10045, name: "Mega Ampharos" },
+            { apiId: 10046, name: "Mega Scizor" },
+            { apiId: 10047, name: "Mega Heracross" },
+            { apiId: 10048, name: "Mega Houndoom" },
+            { apiId: 10049, name: "Mega Tyranitar" },
+            { apiId: 10050, name: "Mega Blaziken" },
+            { apiId: 10051, name: "Mega Gardevoir" },
+            { apiId: 10052, name: "Mega Mawile" },
+            { apiId: 10053, name: "Mega Aggron" },
+            { apiId: 10054, name: "Mega Medicham" },
+            { apiId: 10055, name: "Mega Manectric" },
+            { apiId: 10056, name: "Mega Banette" },
+            { apiId: 10057, name: "Mega Absol" },
+            { apiId: 10058, name: "Mega Garchomp" },
+            { apiId: 10059, name: "Mega Lucario" },
+            { apiId: 10060, name: "Mega Abomasnow" },
+            { apiId: 10062, name: "Mega Beedrill" },
+            { apiId: 10063, name: "Mega Pidgeot" },
+            { apiId: 10064, name: "Mega Slowbro" },
+            { apiId: 10065, name: "Mega Steelix" },
+            { apiId: 10066, name: "Mega Sceptile" },
+            { apiId: 10067, name: "Mega Swampert" },
+            { apiId: 10068, name: "Mega Sableye" },
+            { apiId: 10069, name: "Mega Sharpedo" },
+            { apiId: 10070, name: "Mega Camerupt" },
+            { apiId: 10071, name: "Mega Altaria" },
+            { apiId: 10072, name: "Mega Glalie" },
+            { apiId: 10073, name: "Mega Salamence" },
+            { apiId: 10074, name: "Mega Metagross" },
+            { apiId: 10075, name: "Mega Latias" },
+            { apiId: 10076, name: "Mega Latios" },
+            { apiId: 10077, name: "Groudon Primigenio" },
+            { apiId: 10078, name: "Kyogre Primigenio" },
+            { apiId: 10079, name: "Mega Rayquaza" },
+            { apiId: 10087, name: "Mega Lopunny" },
+            { apiId: 10088, name: "Mega Audino" },
+            { apiId: 10089, name: "Mega Diancie" }
         ];
+
+        let nextDexId = 1026;
 
         allMegas.forEach(m => {
             DATABASE.secreto.push({
-                id: m.id,
+                id: nextDexId, // ID limpio y ordenado para tu juego (1026, 1027, etc.)
                 name: m.name,
                 stage: 4,
                 rarity: "secreto",
-                sprite: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${m.id}.png`
+                sprite: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${m.apiId}.png`
             });
+            nextDexId++;
         });
 
-        console.log("¡Base de datos cargada al completo con 1025 Pokémon y 48 Megas!", DATABASE);
+        console.log("¡Base de datos cargada y ordenada hasta el #" + (nextDexId - 1) + "!", DATABASE);
     } catch (error) {
         console.error("Error cargando la base de datos de Pokémon:", error);
     }
