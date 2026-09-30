@@ -1,50 +1,56 @@
-// Fondo de Partículas
+// game.js - Fondo de partículas, Pokédex y Renderizado de Invocación
+
+// =========================================
+// FONDO ANIMADO DE PARTÍCULAS
+// =========================================
 const canvas = document.getElementById('particles-canvas');
-const ctx = canvas.getContext('2d');
+const ctx = canvas ? canvas.getContext('2d') : null;
 
-function resizeCanvas() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+if (canvas && ctx) {
+    function resizeCanvas() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    const particles = Array.from({ length: 35 }, () => ({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        radius: Math.random() * 2 + 1,
+        vx: (Math.random() - 0.5) * 0.3,
+        vy: (Math.random() - 0.5) * 0.3
+    }));
+
+    function animate() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = 'rgba(0, 242, 254, 0.25)';
+        
+        particles.forEach(p => {
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+            ctx.fill();
+
+            p.x += p.vx;
+            p.y += p.vy;
+
+            if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
+            if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
+        });
+
+        requestAnimationFrame(animate);
+    }
+    animate();
 }
-resizeCanvas();
-window.addEventListener('resize', resizeCanvas);
-
-const particles = Array.from({ length: 35 }, () => ({
-    x: Math.random() * canvas.width,
-    y: Math.random() * canvas.height,
-    radius: Math.random() * 2 + 1,
-    vx: (Math.random() - 0.5) * 0.3,
-    vy: (Math.random() - 0.5) * 0.3
-}));
-
-function animate() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = 'rgba(0, 242, 254, 0.25)';
-    
-    particles.forEach(p => {
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-        ctx.fill();
-
-        p.x += p.vx;
-        p.y += p.vy;
-
-        if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
-        if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
-    });
-
-    requestAnimationFrame(animate);
-}
-animate();
 
 // =========================================
 // COLECCIÓN GLOBAL Y POKÉDEX
 // =========================================
 
-// Inventario global del jugador (IDs obtenidos)
+// Inventario global del jugador (guarda los IDs obtenidos)
 const playerCollection = new Set();
 
-// Función auxiliar para obtener la lista completa de Pokémon desde DATABASE
+// Obtener la lista completa de Pokémon desde DATABASE ordenados por ID
 function getAllPokemonFromDB() {
     if (typeof DATABASE === 'undefined') return [];
     
@@ -55,12 +61,12 @@ function getAllPokemonFromDB() {
         }
     });
 
-    // Ordenamos por ID de Pokédex de menor a mayor
     return allPkmn.sort((a, b) => a.id - b.id);
 }
 
-// Registrar Pokémon desbloqueados tras tirar en el Gacha
+// Registrar Pokémon desbloqueados
 function registerUnlockedPokemon(pulls) {
+    if (!Array.isArray(pulls)) return;
     pulls.forEach(pkmn => {
         if (pkmn && pkmn.id !== undefined) {
             playerCollection.add(Number(pkmn.id));
@@ -68,7 +74,7 @@ function registerUnlockedPokemon(pulls) {
     });
 }
 
-// Renderizar la Pokédex
+// Renderizar Pokédex
 function renderDex() {
     const grid = document.getElementById('dex-grid');
     const counter = document.getElementById('dex-counter');
@@ -80,7 +86,7 @@ function renderDex() {
     const dbList = getAllPokemonFromDB();
 
     if (dbList.length === 0) {
-        grid.innerHTML = '<p style="color: var(--text-secondary); grid-column: 1/-1;">Cargando base de datos de Pokémon...</p>';
+        grid.innerHTML = '<p style="color: var(--text-secondary); grid-column: 1/-1; text-align: center;">Cargando Pokédex...</p>';
         return;
     }
 
@@ -127,20 +133,20 @@ function switchTab(tabId, event) {
         if (tabId === 'dex' && navBtns[2]) navBtns[2].classList.add('active');
     }
 
-    // Limpiar pantalla de invocación al salir
+    // Limpiar pantalla de invocación al cambiar de pestaña
     if (tabId !== 'invocacion') {
         const resultsContainer = document.getElementById('gacha-results');
         if (resultsContainer) resultsContainer.innerHTML = '';
     }
 
-    // Cargar Dex al entrar a la pestaña Dex
+    // Renderizar Pokédex
     if (tabId === 'dex') {
         renderDex();
     }
 }
 
 // =========================================
-// SISTEMA DE TIRADAS GACHA
+// SISTEMA DE RENDERIZADO DE TIRADAS GACHA
 // =========================================
 
 function pullGacha(amount) {
@@ -152,7 +158,8 @@ function pullGacha(amount) {
     let pulls = [];
     if (amount === 1) {
         if (typeof executeSinglePull === 'function') {
-            pulls.push(executeSinglePull());
+            const result = executeSinglePull();
+            if (result) pulls.push(result);
         }
     } else {
         if (typeof executeMultiPull === 'function') {
@@ -160,14 +167,14 @@ function pullGacha(amount) {
         }
     }
 
-    // Guardar Pokémon obtenidos en la colección de la Pokédex
+    // Guardar en Pokédex
     registerUnlockedPokemon(pulls);
 
-    // Dibujar resultados en pantalla con clases de rareza normalizadas para el CSS
+    // Pintar cartas en pantalla sin errores de animación ni faltas
     pulls.forEach((pkmn, index) => {
         if (!pkmn) return;
 
-        // Limpiar la cadena de rareza (remueve tildes para evitar desajustes en el CSS)
+        // Limpiar nombre de rareza para la clase CSS
         const rawRarity = pkmn.rarity || 'comun';
         const cleanRarityClass = rawRarity
             .toLowerCase()
@@ -176,13 +183,16 @@ function pullGacha(amount) {
 
         const card = document.createElement('div');
         card.className = `card-pokemon ${cleanRarityClass}`;
-        card.style.animationDelay = `${index * 0.12}s`;
+        
+        // Retardo corregido de animación por carta
+        card.style.animationDelay = `${(index * 0.1).toFixed(2)}s`;
 
         card.innerHTML = `
             <img src="${pkmn.sprite}" alt="${pkmn.name}">
             <h4>${pkmn.name}</h4>
             <div class="card-rarity">${rawRarity.toUpperCase()}</div>
         `;
+        
         resultsContainer.appendChild(card);
     });
 }
