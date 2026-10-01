@@ -20,25 +20,11 @@
         </div>
         <nav class="nav-bar">
             <button class="nav-tab active" onclick="switchTab('lobby')">Lobby</button>
-            <button class="nav-tab active" onclick="switchTab('equipo')">Equipo</button>
+            <button class="nav-tab" onclick="switchTab('equipo')">Equipo</button>
             <button class="nav-tab" onclick="switchTab('invocacion')">Invocación</button>
             <button class="nav-tab" onclick="switchTab('dex')">Dex</button>
         </nav>
     </header>
-
-    <!-- Sección de la vista del Equipo / Inventario -->
-<section id="sec-equipo" class="tab-content">
-    <div class="equipo-header">
-        <h2>MI EQUIPO / INVENTARIO</h2>
-        <div class="equipo-stats">
-            <span>Total capturados: <strong id="total-capturados">0</strong></span>
-        </div>
-    </div>
-    
-    <div id="inventory-grid" class="dex-grid">
-        <!-- Las cartas guardadas se cargarán dinámicamente aquí -->
-    </div>
-</section>
 
     <!-- ZONA CENTRAL DEL LOBBY -->
     <main id="tab-lobby" class="lobby-container tab-content active">
@@ -59,6 +45,22 @@
                         <span class="btn-subtext">PRÓXIMAMENTE</span>
                     </button>
                 </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Sección de la vista del Equipo / Inventario -->
+    <main id="tab-equipo" class="lobby-container tab-content">
+        <div class="dex-frame">
+            <div class="equipo-header">
+                <h2>MI EQUIPO / INVENTARIO</h2>
+                <div class="equipo-stats">
+                    <span>Total capturados: <strong id="total-capturados">0</strong></span>
+                </div>
+            </div>
+            
+            <div id="inventory-grid" class="dex-grid">
+                <!-- Las cartas guardadas se cargarán dinámicamente aquí -->
             </div>
         </div>
     </main>

@@ -752,3 +752,30 @@ body {
     color: #94a3b8;
     font-size: 1.1rem;
 }
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+/* Marca la pestaña seleccionada arriba */
+.nav-btn.active {
+    border-bottom: 3px solid #00f0ff;
+    color: #00f0ff;
+    text-shadow: 0 0 10px rgba(0, 240, 255, 0.5);
+}
+
+/* Badge de duplicados en la pestaña equipo */
+.dup-badge {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    background: #00f0ff;
+    color: #000;
+    font-weight: bold;
+    font-size: 0.75rem;
+    padding: 2px 6px;
+    border-radius: 10px;
+}
