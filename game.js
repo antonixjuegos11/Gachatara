@@ -47,8 +47,15 @@ if (canvas && ctx) {
 // COLECCIÓN GLOBAL Y POKÉDEX
 // =========================================
 
-// Inventario global del jugador (guarda los IDs obtenidos)
-const playerCollection = new Set();
+// Cargar la colección guardada del almacenamiento local o iniciar vacía
+const STORAGE_KEY = 'pokemon_pokedex_collection';
+const savedCollection = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+const playerCollection = new Set(savedCollection);
+
+// Guardar los datos actuales de la colección
+function saveCollection() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(playerCollection)));
+}
 
 // Obtener la lista completa de Pokémon desde DATABASE ordenados por ID
 function getAllPokemonFromDB() {
@@ -64,14 +71,24 @@ function getAllPokemonFromDB() {
     return allPkmn.sort((a, b) => a.id - b.id);
 }
 
-// Registrar Pokémon desbloqueados
+// Registrar Pokémon desbloqueados y guardar progreso
 function registerUnlockedPokemon(pulls) {
     if (!Array.isArray(pulls)) return;
+    let newUnlocked = false;
+
     pulls.forEach(pkmn => {
         if (pkmn && pkmn.id !== undefined) {
-            playerCollection.add(Number(pkmn.id));
+            const pkmnId = Number(pkmn.id);
+            if (!playerCollection.has(pkmnId)) {
+                playerCollection.add(pkmnId);
+                newUnlocked = true;
+            }
         }
     });
+
+    if (newUnlocked) {
+        saveCollection();
+    }
 }
 
 // Renderizar Pokédex
@@ -167,10 +184,17 @@ function pullGacha(amount) {
         }
     }
 
-    // Guardar en Pokédex
+    // Guardar en Pokédex y almacenamiento local
     registerUnlockedPokemon(pulls);
 
-    // Pintar cartas en pantalla sin errores de animación ni faltas
+    // Opcional: Agregar al inventario/equipo si existe la función correspondiente
+    if (typeof addPokemonToInventory === 'function') {
+        pulls.forEach(pkmn => {
+            if (pkmn) addPokemonToInventory(pkmn);
+        });
+    }
+
+    // Pintar cartas en pantalla con animación
     pulls.forEach((pkmn, index) => {
         if (!pkmn) return;
 
@@ -184,7 +208,7 @@ function pullGacha(amount) {
         const card = document.createElement('div');
         card.className = `card-pokemon ${cleanRarityClass}`;
         
-        // Retardo corregido de animación por carta
+        // Retardo de animación por carta corregido
         card.style.animationDelay = `${(index * 0.1).toFixed(2)}s`;
 
         card.innerHTML = `

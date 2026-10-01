@@ -33,11 +33,11 @@ function selectBanner(genNumber) {
 function rollRarity() {
     const rand = Math.random() * 100;
     
-    if (rand < 1) return "secreto";       // 3% Mega / Secreto
-    if (rand < 5) return "legendario";    // 5% Legendario
-    if (rand < 20) return "epico";        // 17% Épico
+    if (rand < 1) return "secreto";       // 1% Mega / Secreto
+    if (rand < 5) return "legendario";    // 4% Legendario
+    if (rand < 20) return "epico";        // 15% Épico
     if (rand < 50) return "raro";         // 30% Raro
-    return "comun";                       // 45% Común
+    return "comun";                       // 50% Común
 }
 
 // Obtener un Pokémon con garantías
@@ -59,7 +59,6 @@ function getRandomPokemonFromGen(rarity) {
     // FALLBACKS DE SEGURIDAD (Para no dejar ningún hueco nulo nunca)
     if (filtered.length === 0) {
         if (rarity === 'secreto') {
-            // Si la Gen activa no tiene Megas (o aun están cargando), busca una Mega global
             filtered = DATABASE.secreto || [];
         }
         if (filtered.length === 0) {
@@ -100,4 +99,33 @@ function executeMultiPull() {
         }
     }
     return pulls;
+}
+
+// --- FUNCIÓN DE REALIZAR TIRADA Y GUARDAR EN EL INVENTARIO/EQUIPO ---
+function pullGacha(amount) {
+    const resultsContainer = document.getElementById('gacha-results');
+    if (!resultsContainer) return;
+
+    resultsContainer.innerHTML = '';
+
+    const results = (amount === 10) ? executeMultiPull() : [executeSinglePull()];
+
+    results.forEach(pkmn => {
+        if (!pkmn) return;
+
+        // 1. Guardar en el inventario del usuario y Pokédex
+        if (typeof addPokemonToInventory === 'function') {
+            addPokemonToInventory(pkmn);
+        }
+
+        // 2. Mostrar la carta en la pantalla de tirada
+        const card = document.createElement('div');
+        card.className = `pokemon-card rarity-${pkmn.rarity}`;
+        card.innerHTML = `
+            <div class="card-id">#${String(pkmn.id).padStart(4, '0')}</div>
+            <img src="${pkmn.sprite}" alt="${pkmn.name}">
+            <div class="card-name">${pkmn.name}</div>
+        `;
+        resultsContainer.appendChild(card);
+    });
 }

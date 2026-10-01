@@ -62,6 +62,17 @@ const MEGA_NAMES = {
     "diancie-mega": "Mega Diancie"
 };
 
+/**
+ * Formatea el nombre eliminando guiones y capitalizando palabras
+ */
+function formatPokemonName(name) {
+    if (!name) return "Desconocido";
+    return name
+        .split('-')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+}
+
 // Carga automática de Megas consultando directamente a la PokéAPI
 async function initSecretMegas() {
     DATABASE.secreto = [];
@@ -87,92 +98,102 @@ async function initSecretMegas() {
     }
 }
 
-// Carga automática de Pokémon base y Ultraentes
+// Carga automática de Pokémon base y Ultraentes con ejecución optimizada en lotes
 async function loadFullDatabase() {
     try {
-        console.log("Cargando base de datos completa...");
-        
+        console.log("Iniciando carga de la base de datos...");
+
         DATABASE.comun = [];
         DATABASE.raro = [];
         DATABASE.epico = [];
         DATABASE.legendario = [];
-        
-        // Carga dinámica de Megas
+
+        // 1. Cargar Megas primero
         await initSecretMegas();
 
+        // 2. Obtener lista base de los 1025 Pokémon
         const response = await fetch('https://pokeapi.co/api/v2/pokemon?limit=1025');
         const data = await response.json();
 
         const evoChainCache = new Map();
+        const results = [];
+        const BATCH_SIZE = 25; // Procesa en bloques de 25 para optimizar el rendimiento
 
-        const pokemonPromises = data.results.map(async (pkmn, index) => {
-            const id = index + 1;
-            
-            try {
-                const specRes = await fetch(`https://pokeapi.co/api/v2/pokemon-species/${id}/`);
-                const specData = await specRes.json();
+        for (let i = 0; i < data.results.length; i += BATCH_SIZE) {
+            const batch = data.results.slice(i, i + BATCH_SIZE);
 
-                let rarity = "comun";
+            const batchPromises = batch.map(async (pkmn, index) => {
+                const id = i + index + 1;
 
-                const isUltraBeast = (id >= 793 && id <= 800) || (id >= 803 && id <= 806);
-                
-                if (specData.is_legendary || specData.is_mythical || isUltraBeast) {
-                    rarity = "legendario";
-                } else if (specData.evolution_chain && specData.evolution_chain.url) {
-                    const evoUrl = specData.evolution_chain.url;
-                    let chainData;
-                    
-                    if (evoChainCache.has(evoUrl)) {
-                        chainData = evoChainCache.get(evoUrl);
-                    } else {
-                        const evoRes = await fetch(evoUrl);
-                        chainData = await evoRes.json();
-                        evoChainCache.set(evoUrl, chainData);
+                try {
+                    const specRes = await fetch(`https://pokeapi.co/api/v2/pokemon-species/${id}/`);
+                    if (!specRes.ok) throw new Error("Error en datos de especie");
+                    const specData = await specRes.json();
+
+                    let rarity = "comun";
+                    const isUltraBeast = (id >= 793 && id <= 800) || (id >= 803 && id <= 806);
+
+                    if (specData.is_legendary || specData.is_mythical || isUltraBeast) {
+                        rarity = "legendario";
+                    } else if (specData.evolution_chain && specData.evolution_chain.url) {
+                        const evoUrl = specData.evolution_chain.url;
+                        let chainData;
+
+                        if (evoChainCache.has(evoUrl)) {
+                            chainData = evoChainCache.get(evoUrl);
+                        } else {
+                            const evoRes = await fetch(evoUrl);
+                            chainData = await evoRes.json();
+                            evoChainCache.set(evoUrl, chainData);
+                        }
+
+                        const chain = chainData.chain;
+                        const hasEvolutions = chain.evolves_to && chain.evolves_to.length > 0;
+
+                        if (!hasEvolutions) {
+                            rarity = "raro";
+                        } else if (chain.species.name === specData.name) {
+                            rarity = "comun";
+                        } else {
+                            const isStage2 = chain.evolves_to.some(e => e.species.name === specData.name);
+                            rarity = isStage2 ? "raro" : "epico";
+                        }
                     }
 
-                    const chain = chainData.chain;
-                    const hasEvolutions = chain.evolves_to && chain.evolves_to.length > 0;
-
-                    if (!hasEvolutions) {
-                        rarity = "raro";
-                    } else if (chain.species.name === specData.name) {
-                        rarity = "comun";
-                    } else {
-                        const isStage2 = chain.evolves_to.some(e => e.species.name === specData.name);
-                        rarity = isStage2 ? "raro" : "epico";
-                    }
+                    return {
+                        id: id,
+                        name: formatPokemonName(pkmn.name),
+                        stage: rarity === 'comun' ? 1 : rarity === 'raro' ? 2 : 3,
+                        rarity: rarity,
+                        sprite: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`
+                    };
+                } catch (err) {
+                    return {
+                        id: id,
+                        name: formatPokemonName(pkmn.name),
+                        stage: 1,
+                        rarity: "comun",
+                        sprite: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`
+                    };
                 }
+            });
 
-                return {
-                    id: id,
-                    name: pkmn.name.charAt(0).toUpperCase() + pkmn.name.slice(1),
-                    stage: rarity === 'comun' ? 1 : rarity === 'raro' ? 2 : 3,
-                    rarity: rarity,
-                    sprite: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`
-                };
-            } catch (err) {
-                return {
-                    id: id,
-                    name: pkmn.name.charAt(0).toUpperCase() + pkmn.name.slice(1),
-                    stage: 1,
-                    rarity: "comun",
-                    sprite: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`
-                };
-            }
-        });
+            const batchResults = await Promise.all(batchPromises);
+            results.push(...batchResults);
+        }
 
-        const loadedPokemon = await Promise.all(pokemonPromises);
-
-        loadedPokemon.forEach(pkmn => {
+        // Clasificar los resultados en la base de datos
+        results.forEach(pkmn => {
             if (DATABASE[pkmn.rarity]) {
                 DATABASE[pkmn.rarity].push(pkmn);
             }
         });
 
-        console.log("¡Base de datos lista!", DATABASE);
+        console.log("¡Base de datos cargada y lista con éxito!", DATABASE);
     } catch (error) {
-        console.error("Error cargando la base de datos:", error);
+        console.error("Error al cargar la base de datos:", error);
     }
 }
 
+// Iniciar la carga al importar el archivo
 loadFullDatabase();
