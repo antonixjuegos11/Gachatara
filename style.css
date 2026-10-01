@@ -779,3 +779,72 @@ body {
     padding: 2px 6px;
     border-radius: 10px;
 }
+/* Contenedor principal de la pestaña Equipo */
+#tab-equipo {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* Cabecera del Inventario */
+.inventory-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 20px;
+    margin-bottom: 15px;
+}
+
+#total-captured {
+    font-weight: bold;
+    font-size: 1rem;
+    color: var(--text-primary, #ffffff);
+}
+
+/* Grid adaptable y limpio para el Inventario */
+#inventory-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 15px;
+    padding: 15px;
+    max-height: 65vh;
+    overflow-y: auto; /* Desplazamiento vertical fluido */
+    overflow-x: hidden; /* Evita desbordamiento horizontal */
+    box-sizing: border-box;
+}
+
+/* Estilo para cada carta individual */
+.pokemon-card, .card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px;
+    border-radius: 8px;
+    background: rgba(20, 25, 45, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-sizing: border-box;
+    min-width: 0; /* Evita que las cartas se desborden del grid */
+}
+
+.pokemon-card img, .card img {
+    width: 80px;
+    height: 80px;
+    object-fit: contain;
+}
+
+.card-id {
+    font-size: 0.8rem;
+    font-weight: bold;
+    opacity: 0.8;
+}
+
+.card-name {
+    font-size: 0.9rem;
+    font-weight: bold;
+    text-align: center;
+    margin-top: 5px;
+    word-break: break-word;
+}

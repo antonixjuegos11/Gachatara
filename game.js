@@ -79,9 +79,17 @@ function addPokemonToInventory(pkmn) {
 }
 
 // Renderizar Inventario / Equipo
+// Renderizar Inventario / Equipo ordenado por ID y con contador dinámico
 function renderInventory() {
     const container = document.getElementById('inventory-grid') || document.getElementById('team-grid');
+    const counterElem = document.getElementById('total-captured');
+
     if (!container) return;
+
+    // 1. Actualizar el contador total de capturados
+    if (counterElem) {
+        counterElem.innerText = `Total capturados: ${userInventory.length}`;
+    }
 
     container.innerHTML = '';
 
@@ -90,9 +98,16 @@ function renderInventory() {
         return;
     }
 
-    userInventory.forEach(pkmn => {
+    // 2. Ordenar de menor a mayor por número de Pokédex (ID)
+    const sortedInventory = [...userInventory].sort((a, b) => Number(a.id) - Number(b.id));
+
+    // 3. Crear las cartas alineadas
+    sortedInventory.forEach(pkmn => {
         const rawRarity = pkmn.rarity || 'comun';
-        const cleanRarityClass = rawRarity.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        const cleanRarityClass = rawRarity
+            .toLowerCase()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "");
 
         const card = document.createElement('div');
         card.className = `pokemon-card card-pokemon ${cleanRarityClass}`;
