@@ -14,17 +14,17 @@
     <canvas id="particles-canvas"></canvas>
 
     <!-- BANNER SUPERIOR DE NAVEGACIÓN -->
-    <header class="top-header">
-        <div class="logo-title">
-            <span class="game-tag">GACHATARA</span>
-        </div>
-        <nav class="nav-bar">
-            <button class="nav-tab active" onclick="switchTab('lobby')">Lobby</button>
-            <button class="nav-tab" onclick="switchTab('equipo')">Equipo</button>
-            <button class="nav-tab" onclick="switchTab('invocacion')">Invocación</button>
-            <button class="nav-tab" onclick="switchTab('dex')">Dex</button>
-        </nav>
-    </header>
+<header class="top-header">
+    <div class="logo-title">
+        <span class="game-tag">GACHATARA</span>
+    </div>
+    <nav class="nav-bar">
+        <button class="nav-tab active" onclick="switchTab('lobby', event)">Lobby</button>
+        <button class="nav-tab" onclick="switchTab('equipo', event)">Equipo</button>
+        <button class="nav-tab" onclick="switchTab('invocacion', event)">Invocación</button>
+        <button class="nav-tab" onclick="switchTab('dex', event)">Dex</button>
+    </nav>
+</header>
 
     <!-- ZONA CENTRAL DEL LOBBY -->
     <main id="tab-lobby" class="lobby-container tab-content active">

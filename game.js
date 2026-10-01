@@ -1,4 +1,4 @@
-// game.js - Fondo de partículas, Pokédex y Renderizado de Invocación
+// game.js - Fondo de partículas, Pokédex, Inventario y Navegación Corregida
 
 // =========================================
 // FONDO ANIMADO DE PARTÍCULAS
@@ -44,20 +44,72 @@ if (canvas && ctx) {
 }
 
 // =========================================
-// COLECCIÓN GLOBAL Y POKÉDEX
+// GESTIÓN DE INVENTARIO Y POKÉDEX (LOCALSTORAGE)
 // =========================================
 
-// Cargar la colección guardada del almacenamiento local o iniciar vacía
-const STORAGE_KEY = 'pokemon_pokedex_collection';
-const savedCollection = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-const playerCollection = new Set(savedCollection);
+const POKEDEX_KEY = 'pokemon_pokedex_collection';
+const INVENTORY_KEY = 'pokemon_user_inventory';
 
-// Guardar los datos actuales de la colección
-function saveCollection() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(playerCollection)));
+// Cargar Pokédex (desbloqueados únicos)
+const savedDex = JSON.parse(localStorage.getItem(POKEDEX_KEY) || '[]');
+const playerCollection = new Set(savedDex);
+
+// Cargar Inventario (Pokémon obtenidos con fecha/instancia)
+let userInventory = JSON.parse(localStorage.getItem(INVENTORY_KEY) || '[]');
+
+function saveStorage() {
+    localStorage.setItem(POKEDEX_KEY, JSON.stringify(Array.from(playerCollection)));
+    localStorage.setItem(INVENTORY_KEY, JSON.stringify(userInventory));
 }
 
-// Obtener la lista completa de Pokémon desde DATABASE ordenados por ID
+// Añadir Pokémon al inventario del usuario
+function addPokemonToInventory(pkmn) {
+    if (!pkmn) return;
+
+    // Registrar en Pokédex
+    playerCollection.add(Number(pkmn.id));
+
+    // Guardar copia en el inventario/equipo
+    userInventory.push({
+        ...pkmn,
+        uid: Date.now() + Math.random().toString(36).substring(2, 7) // Identificador único
+    });
+
+    saveStorage();
+}
+
+// Renderizar Inventario / Equipo
+function renderInventory() {
+    const container = document.getElementById('inventory-grid') || document.getElementById('team-grid');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    if (userInventory.length === 0) {
+        container.innerHTML = '<p style="color: var(--text-secondary); grid-column: 1/-1; text-align: center;">No tienes Pokémon en tu inventario aún. ¡Usa el Gacha para conseguir algunos!</p>';
+        return;
+    }
+
+    userInventory.forEach(pkmn => {
+        const rawRarity = pkmn.rarity || 'comun';
+        const cleanRarityClass = rawRarity.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+        const card = document.createElement('div');
+        card.className = `pokemon-card card-pokemon ${cleanRarityClass}`;
+        card.innerHTML = `
+            <div class="card-id">#${String(pkmn.id).padStart(4, '0')}</div>
+            <img src="${pkmn.sprite}" alt="${pkmn.name}">
+            <div class="card-name">${pkmn.name}</div>
+            <div class="card-rarity">${rawRarity.toUpperCase()}</div>
+        `;
+        container.appendChild(card);
+    });
+}
+
+// =========================================
+// OBTENER POKÉMON DE LA BASE DE DATOS
+// =========================================
+
 function getAllPokemonFromDB() {
     if (typeof DATABASE === 'undefined') return [];
     
@@ -69,26 +121,6 @@ function getAllPokemonFromDB() {
     });
 
     return allPkmn.sort((a, b) => a.id - b.id);
-}
-
-// Registrar Pokémon desbloqueados y guardar progreso
-function registerUnlockedPokemon(pulls) {
-    if (!Array.isArray(pulls)) return;
-    let newUnlocked = false;
-
-    pulls.forEach(pkmn => {
-        if (pkmn && pkmn.id !== undefined) {
-            const pkmnId = Number(pkmn.id);
-            if (!playerCollection.has(pkmnId)) {
-                playerCollection.add(pkmnId);
-                newUnlocked = true;
-            }
-        }
-    });
-
-    if (newUnlocked) {
-        saveCollection();
-    }
 }
 
 // Renderizar Pokédex
@@ -131,34 +163,43 @@ function renderDex() {
 }
 
 // =========================================
-// NAVEGACIÓN ENTRE PESTAÑAS
+// NAVEGACIÓN ENTRE PESTAÑAS (CORREGIDA)
 // =========================================
 
 function switchTab(tabId, event) {
+    // 1. Ocultar todas las pestañas
     document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+    
+    // 2. Desmarcar todos los botones de navegación
     document.querySelectorAll('.nav-tab').forEach(btn => btn.classList.remove('active'));
 
+    // 3. Activar el contenedor de la pestaña seleccionada
     const activeTab = document.getElementById(`tab-${tabId}`);
     if (activeTab) activeTab.classList.add('active');
 
+    // 4. Activar el botón correcto
     if (event && event.currentTarget) {
         event.currentTarget.classList.add('active');
     } else {
-        const navBtns = document.querySelectorAll('.nav-tab');
-        if (tabId === 'lobby' && navBtns[0]) navBtns[0].classList.add('active');
-        if (tabId === 'invocacion' && navBtns[1]) navBtns[1].classList.add('active');
-        if (tabId === 'dex' && navBtns[2]) navBtns[2].classList.add('active');
+        // Buscar el botón correspondiente por su llamada onclick o data-tab
+        const targetBtn = document.querySelector(`.nav-tab[onclick*="'${tabId}'"]`) || 
+                          document.querySelector(`.nav-tab[data-tab="${tabId}"]`);
+        if (targetBtn) {
+            targetBtn.classList.add('active');
+        }
     }
 
-    // Limpiar pantalla de invocación al cambiar de pestaña
+    // 5. Limpiar tiradas gacha si salimos de la pestaña invocación
     if (tabId !== 'invocacion') {
         const resultsContainer = document.getElementById('gacha-results');
         if (resultsContainer) resultsContainer.innerHTML = '';
     }
 
-    // Renderizar Pokédex
+    // 6. Actualizar vistas según la pestaña seleccionada
     if (tabId === 'dex') {
         renderDex();
+    } else if (tabId === 'inventory' || tabId === 'equipo' || tabId === 'lobby') {
+        renderInventory();
     }
 }
 
@@ -184,31 +225,22 @@ function pullGacha(amount) {
         }
     }
 
-    // Guardar en Pokédex y almacenamiento local
-    registerUnlockedPokemon(pulls);
-
-    // Opcional: Agregar al inventario/equipo si existe la función correspondiente
-    if (typeof addPokemonToInventory === 'function') {
-        pulls.forEach(pkmn => {
-            if (pkmn) addPokemonToInventory(pkmn);
-        });
-    }
+    // Guardar cada Pokémon en el Inventario y Pokédex
+    pulls.forEach(pkmn => {
+        if (pkmn) {
+            addPokemonToInventory(pkmn);
+        }
+    });
 
     // Pintar cartas en pantalla con animación
     pulls.forEach((pkmn, index) => {
         if (!pkmn) return;
 
-        // Limpiar nombre de rareza para la clase CSS
         const rawRarity = pkmn.rarity || 'comun';
-        const cleanRarityClass = rawRarity
-            .toLowerCase()
-            .normalize("NFD")
-            .replace(/[\u0300-\u036f]/g, "");
+        const cleanRarityClass = rawRarity.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
         const card = document.createElement('div');
         card.className = `card-pokemon ${cleanRarityClass}`;
-        
-        // Retardo de animación por carta corregido
         card.style.animationDelay = `${(index * 0.1).toFixed(2)}s`;
 
         card.innerHTML = `
@@ -220,3 +252,8 @@ function pullGacha(amount) {
         resultsContainer.appendChild(card);
     });
 }
+
+// Inicializar vistas al cargar la página
+document.addEventListener('DOMContentLoaded', () => {
+    renderInventory();
+});
