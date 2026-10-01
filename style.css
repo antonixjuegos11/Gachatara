@@ -720,3 +720,35 @@ body {
         grid-template-columns: repeat(2, 1fr) !important;
     }
 }
+
+.equipo-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding: 10px 20px;
+    background: rgba(15, 23, 42, 0.6);
+    border-radius: 8px;
+    border: 1px solid rgba(0, 240, 255, 0.2);
+}
+
+.dup-badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: #00f0ff;
+    color: #000;
+    font-weight: bold;
+    font-size: 0.75rem;
+    padding: 2px 6px;
+    border-radius: 12px;
+    box-shadow: 0 0 8px rgba(0, 240, 255, 0.6);
+}
+
+.empty-inventory {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 60px 20px;
+    color: #94a3b8;
+    font-size: 1.1rem;
+}
