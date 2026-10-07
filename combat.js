@@ -110,7 +110,6 @@ function startBattle(playerUnits, enemyUnits, mode = 'quick', onEndCallback = nu
 window.executePlayerMove = function(moveIndex) {
     if (CombatState.isBattleOver) return;
 
-    // Si por alguna razón el turno no era del jugador, lo forzamos para la prueba
     if (CombatState.turn !== 'player') {
         CombatState.turn = 'player';
     }
@@ -174,7 +173,7 @@ function executeEnemyTurn() {
     const attacker = CombatState.enemyTeam[CombatState.activeEnemyIndex];
     const defender = CombatState.playerTeam[CombatState.activePlayerIndex];
 
-    // IA Enemiga: usa movimiento cargado si tiene energía suficiente
+    // IA Enemiga
     let selectedMove = attacker.moves[0];
     if (attacker.energy >= 50 && attacker.moves[1]) {
         selectedMove = attacker.moves[1];
@@ -218,10 +217,9 @@ function endTurn() {
 // =========================================
 
 function calculateDamage(attacker, defender, move) {
-    const isCrit = Math.random() < 0.15; // 15% Probabilidad de crítico
+    const isCrit = Math.random() < 0.15;
     const critMult = isCrit ? 1.5 : 1.0;
 
-    // Multiplicador elemental
     let elementMult = 1.0;
     let effMessage = '';
     const atkType = move.type || 'Normal';
@@ -234,7 +232,7 @@ function calculateDamage(attacker, defender, move) {
     }
 
     const rawDamage = ((attacker.attack * move.power) - (defender.defense * 0.4)) * critMult * elementMult;
-    const variation = 0.9 + Math.random() * 0.2; // Variación entre 90% y 110%
+    const variation = 0.9 + Math.random() * 0.2;
     const finalDamage = Math.max(5, Math.floor(rawDamage * variation));
 
     return { damage: finalDamage, isCrit, effMessage };
@@ -311,7 +309,6 @@ function awardRewards() {
 // =========================================
 
 function renderCombatArena() {
-    // Buscar el contenedor de la arena dentro de la pestaña de combate
     const container = document.getElementById('combat-arena-container') || 
                       document.getElementById('tab-combate') || 
                       document.getElementById('tab-combat');
@@ -324,35 +321,13 @@ function renderCombatArena() {
     const player = CombatState.playerTeam[CombatState.activePlayerIndex];
     const enemy = CombatState.enemyTeam[CombatState.activeEnemyIndex];
 
-    // Comprobación de seguridad para obtener el sprite correcto
     const playerImg = player.sprite || (player.sprites ? player.sprites.front : '') || '';
     const enemyImg = enemy.sprite || (enemy.sprites ? enemy.sprites.front : '') || '';
 
     container.innerHTML = `
         <div class="combat-arena">
-            <!-- POKÉMON ENEMIGO -->
-            <div class="combat-card enemy-card" id="enemy-card">
-                <div class="unit-info">
-                    <span class="unit-name">${enemy.name} (Nv. ${enemy.level || 10})</span>
-                    <span class="unit-type ${(enemy.type || 'normal').toLowerCase()}">${enemy.type || 'Normal'}</span>
-                </div>
-                <div class="hp-bar-container">
-                    <div class="hp-bar-fill" id="enemy-hp-fill" style="width: ${(enemy.currentHp / enemy.maxHp) * 100}%"></div>
-                </div>
-                <div class="hp-text" id="enemy-hp-text">${enemy.currentHp} / ${enemy.maxHp} HP</div>
-                <div class="sprite-box">
-                    <img id="enemy-sprite" src="${enemyImg}" alt="${enemy.name}">
-                </div>
-            </div>
-
-            <!-- VS BADGE -->
-            <div class="combat-vs-badge">VS</div>
-
-            <!-- POKÉMON JUGADOR -->
+            <!-- POKÉMON JUGADOR (IZQUIERDA) -->
             <div class="combat-card player-card" id="player-card">
-                <div class="sprite-box">
-                    <img id="player-sprite" src="${playerImg}" alt="${player.name}">
-                </div>
                 <div class="unit-info">
                     <span class="unit-name">${player.name} (Nv. ${player.level || 10})</span>
                     <span class="unit-type ${(player.type || 'normal').toLowerCase()}">${player.type || 'Normal'}</span>
@@ -366,6 +341,29 @@ function renderCombatArena() {
                 <div class="energy-bar-container">
                     <div class="energy-bar-fill" id="player-energy-fill" style="width: ${(player.energy / player.maxEnergy) * 100}%"></div>
                 </div>
+
+                <div class="sprite-box">
+                    <img id="player-sprite" src="${playerImg}" alt="${player.name}">
+                </div>
+            </div>
+
+            <!-- VS BADGE -->
+            <div class="combat-vs-badge">VS</div>
+
+            <!-- POKÉMON ENEMIGO (DERECHA) -->
+            <div class="combat-card enemy-card" id="enemy-card">
+                <div class="unit-info">
+                    <span class="unit-name">${enemy.name} (Nv. ${enemy.level || 10})</span>
+                    <span class="unit-type ${(enemy.type || 'normal').toLowerCase()}">${enemy.type || 'Normal'}</span>
+                </div>
+                <div class="hp-bar-container">
+                    <div class="hp-bar-fill" id="enemy-hp-fill" style="width: ${(enemy.currentHp / enemy.maxHp) * 100}%"></div>
+                </div>
+                <div class="hp-text" id="enemy-hp-text">${enemy.currentHp} / ${enemy.maxHp} HP</div>
+                
+                <div class="sprite-box">
+                    <img id="enemy-sprite" src="${enemyImg}" alt="${enemy.name}">
+                </div>
             </div>
         </div>
 
@@ -373,7 +371,7 @@ function renderCombatArena() {
         <div class="combat-controls">
             <div class="moves-grid" id="moves-grid">
                 ${player.moves.map((move, idx) => `
-                    <button class="btn-move" onclick="executePlayerMove(${idx})" ${CombatState.turn !== 'player' || player.energy < move.cost ? 'disabled' : ''}>
+                    <button class="btn-move" onclick="window.executePlayerMove(${idx})" ${CombatState.turn !== 'player' || player.energy < move.cost ? 'disabled' : ''}>
                         <span class="move-name">${move.name}</span>
                         <span class="move-cost">${move.cost > 0 ? `⚡ ${move.cost}` : 'Gratis'}</span>
                     </button>
@@ -386,4 +384,68 @@ function renderCombatArena() {
     `;
 
     updateCombatUI();
+}
+
+function updateCombatUI() {
+    const player = CombatState.playerTeam[CombatState.activePlayerIndex];
+    const enemy = CombatState.enemyTeam[CombatState.activeEnemyIndex];
+
+    if (!player || !enemy) return;
+
+    const pHpPct = Math.max(0, (player.currentHp / player.maxHp) * 100);
+    const eHpPct = Math.max(0, (enemy.currentHp / enemy.maxHp) * 100);
+
+    const pHpFill = document.getElementById('player-hp-fill');
+    const eHpFill = document.getElementById('enemy-hp-fill');
+    if (pHpFill) pHpFill.style.width = `${pHpPct}%`;
+    if (eHpFill) eHpFill.style.width = `${eHpPct}%`;
+
+    const pHpText = document.getElementById('player-hp-text');
+    const eHpText = document.getElementById('enemy-hp-text');
+    if (pHpText) pHpText.innerText = `${player.currentHp} / ${player.maxHp} HP`;
+    if (eHpText) eHpText.innerText = `${enemy.currentHp} / ${enemy.maxHp} HP`;
+
+    const pEnergyFill = document.getElementById('player-energy-fill');
+    if (pEnergyFill) pEnergyFill.style.width = `${(player.energy / player.maxEnergy) * 100}%`;
+
+    const moveButtons = document.querySelectorAll('.btn-move');
+    moveButtons.forEach((btn, idx) => {
+        const move = player.moves[idx];
+        if (move) {
+            btn.disabled = CombatState.turn !== 'player' || player.energy < move.cost || CombatState.isBattleOver;
+        }
+    });
+
+    const logBox = document.getElementById('combat-log-box');
+    if (logBox) {
+        logBox.innerHTML = CombatState.logHistory.slice(-5).map(msg => `<div class="log-item">${msg}</div>`).join('');
+        logBox.scrollTop = logBox.scrollHeight;
+    }
+}
+
+function addCombatLog(msg) {
+    CombatState.logHistory.push(msg);
+    updateCombatUI();
+}
+
+function triggerUnitAnimation(cardId, animType) {
+    const elem = document.getElementById(cardId);
+    if (!elem) return;
+
+    elem.classList.remove('anim-attack', 'anim-hit', 'anim-buff');
+    void elem.offsetWidth;
+    elem.classList.add(`anim-${animType}`);
+}
+
+function showFloatingDamage(cardId, amount, isCrit = false, message = '') {
+    const card = document.getElementById(cardId);
+    if (!card) return;
+
+    const popup = document.createElement('div');
+    popup.className = `damage-popup ${isCrit ? 'crit' : ''}`;
+    popup.innerText = `-${amount} ${message ? `\n${message}` : ''}`;
+
+    card.appendChild(popup);
+
+    setTimeout(() => popup.remove(), 1000);
 }

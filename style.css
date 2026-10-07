@@ -1137,15 +1137,38 @@ a.nav-link {
     50% { box-shadow: 0 0 20px #10b981; }
 }
 
-/* Voltea la imagen del Pokémon del jugador para que mire hacia la derecha */
+/* Estructura fija para que la vida y nombre siempre queden ARRIBA */
+.combat-card {
+    display: flex;
+    flex-direction: column !important;
+    justify-content: flex-start;
+    align-items: center;
+    gap: 6px;
+}
+
+/* Colocar la imagen siempre abajo dentro de la carta */
+.combat-card .sprite-box {
+    order: 2;
+}
+
+.combat-card .unit-info,
+.combat-card .hp-bar-container,
+.combat-card .hp-text,
+.combat-card .energy-bar-container {
+    order: 1;
+}
+
+/* Voltear solo la imagen de tu Pokémon (Zapdos) para que mire hacia el rival */
 .player-card .sprite-box img {
     transform: scaleX(-1);
 }
 
-/* Estructura simétrica de las cartas de combate */
-.combat-card {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
+/* Asegurar que la imagen del enemigo no esté volteada */
+.enemy-card .sprite-box img {
+    transform: scaleX(1);
+}
+
+/* Voltear horizontalmente a tu Pokémon (lado izquierdo) */
+.player-card .sprite-box img {
+    transform: scaleX(-1);
 }
