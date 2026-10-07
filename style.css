@@ -1172,3 +1172,31 @@ a.nav-link {
 .player-card .sprite-box img {
     transform: scaleX(-1);
 }
+
+/* Indicadores de efectividad en los botones de ataque */
+.move-eff {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: bold;
+    margin-top: 4px;
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.eff-super {
+    background-color: rgba(255, 193, 7, 0.25);
+    color: #ffc107;
+    border: 1px solid #ffc107;
+}
+
+.eff-weak {
+    background-color: rgba(108, 117, 125, 0.25);
+    color: #a0a0a0;
+    border: 1px solid #6c757d;
+}
+
+.eff-immune {
+    background-color: rgba(220, 53, 69, 0.25);
+    color: #ff4d4d;
+    border: 1px solid #dc3545;
+}

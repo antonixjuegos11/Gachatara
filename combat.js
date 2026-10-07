@@ -16,14 +16,54 @@ const CombatState = {
     logHistory: []
 };
 
-// Tabla elemental simplificada de multiplicadores de daño
+// =========================================
+// TABLA DE TIPOS COMPLETA Y EFECTIVIDAD
+// =========================================
+
 const TYPE_CHART = {
-    Fuego:    { Planta: 2.0, Agua: 0.5, Fuego: 0.5, Eléctrico: 1.0 },
-    Agua:     { Fuego: 2.0, Planta: 0.5, Agua: 0.5, Eléctrico: 1.0 },
-    Planta:   { Agua: 2.0, Fuego: 0.5, Planta: 0.5, Eléctrico: 1.0 },
-    Eléctrico:{ Agua: 2.0, Planta: 0.5, Eléctrico: 0.5, Fuego: 1.0 },
-    Normal:   {}
+    Normal:   { Roca: 0.5, Fantasma: 0, Acero: 0.5 },
+    Fuego:    { Fuego: 0.5, Agua: 0.5, Planta: 2.0, Hielo: 2.0, Bicho: 2.0, Roca: 0.5, Dragón: 0.5, Acero: 2.0 },
+    Agua:     { Fuego: 2.0, Agua: 0.5, Planta: 0.5, Tierra: 2.0, Roca: 2.0, Dragón: 0.5 },
+    Planta:   { Fuego: 0.5, Agua: 2.0, Planta: 0.5, Veneno: 0.5, Tierra: 2.0, Volador: 0.5, Bicho: 0.5, Roca: 2.0, Dragón: 0.5, Acero: 0.5 },
+    Eléctrico:{ Agua: 2.0, Planta: 0.5, Eléctrico: 0.5, Tierra: 0, Volador: 2.0, Dragón: 0.5 },
+    Hielo:    { Fuego: 0.5, Agua: 0.5, Planta: 2.0, Hielo: 0.5, Tierra: 2.0, Volador: 2.0, Dragón: 2.0, Acero: 0.5 },
+    Lucha:    { Normal: 2.0, Hielo: 2.0, Veneno: 0.5, Volador: 0.5, Psíquico: 0.5, Bicho: 0.5, Roca: 2.0, Fantasma: 0, Siniestro: 2.0, Acero: 2.0, Hada: 0.5 },
+    Veneno:   { Planta: 2.0, Veneno: 0.5, Tierra: 0.5, Roca: 0.5, Fantasma: 0.5, Acero: 0, Hada: 2.0 },
+    Tierra:   { Fuego: 2.0, Eléctrico: 2.0, Planta: 0.5, Veneno: 2.0, Volador: 0, Bicho: 0.5, Roca: 2.0, Acero: 2.0 },
+    Volador:  { Planta: 2.0, Eléctrico: 0.5, Lucha: 2.0, Bicho: 2.0, Roca: 0.5, Acero: 0.5 },
+    Psíquico: { Lucha: 2.0, Veneno: 2.0, Psíquico: 0.5, Siniestro: 0, Acero: 0.5 },
+    Bicho:    { Fuego: 0.5, Planta: 2.0, Lucha: 0.5, Veneno: 0.5, Volador: 0.5, Psíquico: 2.0, Fantasma: 0.5, Siniestro: 2.0, Acero: 0.5, Hada: 0.5 },
+    Roca:     { Fuego: 2.0, Hielo: 2.0, Lucha: 0.5, Tierra: 0.5, Volador: 2.0, Bicho: 2.0, Acero: 0.5 },
+    Fantasma: { Normal: 0, Psíquico: 2.0, Fantasma: 2.0, Siniestro: 0.5 },
+    Dragón:   { Dragón: 2.0, Acero: 0.5, Hada: 0 },
+    Siniestro:{ Lucha: 0.5, Psíquico: 2.0, Fantasma: 2.0, Siniestro: 0.5, Hada: 0.5 },
+    Acero:    { Fuego: 0.5, Agua: 0.5, Eléctrico: 0.5, Hielo: 2.0, Roca: 2.0, Acero: 0.5, Hada: 2.0 },
+    Hada:     { Fuego: 0.5, Lucha: 2.0, Veneno: 0.5, Dragón: 2.0, Siniestro: 2.0, Acero: 0.5 }
 };
+
+/**
+ * Obtiene el multiplicador de daño entre dos tipos
+ */
+function getTypeEffectiveness(moveType, targetType) {
+    if (!moveType || !targetType) return 1.0;
+    const atk = moveType.charAt(0).toUpperCase() + moveType.slice(1).toLowerCase();
+    const def = targetType.charAt(0).toUpperCase() + targetType.slice(1).toLowerCase();
+
+    if (TYPE_CHART[atk] && TYPE_CHART[atk][def] !== undefined) {
+        return TYPE_CHART[atk][def];
+    }
+    return 1.0;
+}
+
+/**
+ * Devuelve un texto formateado con badge de efectividad
+ */
+function getEffectivenessLabel(mult) {
+    if (mult >= 2.0) return { text: "💥 SuperEfectivo", class: "eff-super" };
+    if (mult === 0) return { text: "🚫 Inmune", class: "eff-immune" };
+    if (mult < 1.0) return { text: "🛡️ Poco Efectivo", class: "eff-weak" };
+    return { text: "", class: "" };
+}
 
 // =========================================
 // INICIALIZACIÓN Y ENTRADA AL COMBATE
@@ -191,6 +231,7 @@ function executeEnemyTurn() {
 
     let logText = `🔴 ${attacker.name} enemigo usó ${selectedMove.name} e infligió ${damageResult.damage} de daño.`;
     if (damageResult.isCrit) logText += " ¡CRÍTICO!";
+    if (damageResult.effMessage) logText += ` (${damageResult.effMessage})`;
     addCombatLog(logText);
 
     updateCombatUI();
@@ -220,22 +261,21 @@ function calculateDamage(attacker, defender, move) {
     const isCrit = Math.random() < 0.15;
     const critMult = isCrit ? 1.5 : 1.0;
 
-    let elementMult = 1.0;
-    let effMessage = '';
-    const atkType = move.type || 'Normal';
+    const atkType = move.type || attacker.type || 'Normal';
     const defType = defender.type || 'Normal';
 
-    if (TYPE_CHART[atkType] && TYPE_CHART[atkType][defType]) {
-        elementMult = TYPE_CHART[atkType][defType];
-        if (elementMult > 1.0) effMessage = '¡Super efectivo!';
-        if (elementMult < 1.0) effMessage = 'Poco efectivo...';
+    const elementMult = getTypeEffectiveness(atkType, defType);
+    const effInfo = getEffectivenessLabel(elementMult);
+
+    if (elementMult === 0) {
+        return { damage: 0, isCrit: false, effMessage: effInfo.text, elementMult };
     }
 
-    const rawDamage = ((attacker.attack * move.power) - (defender.defense * 0.4)) * critMult * elementMult;
+    const rawDamage = ((attacker.attack * (move.power || 1.0)) - (defender.defense * 0.4)) * critMult * elementMult;
     const variation = 0.9 + Math.random() * 0.2;
     const finalDamage = Math.max(5, Math.floor(rawDamage * variation));
 
-    return { damage: finalDamage, isCrit, effMessage };
+    return { damage: finalDamage, isCrit, effMessage: effInfo.text, elementMult };
 }
 
 // =========================================
@@ -370,12 +410,18 @@ function renderCombatArena() {
         <!-- PANEL DE ACCIONES Y CONTROLES -->
         <div class="combat-controls">
             <div class="moves-grid" id="moves-grid">
-                ${player.moves.map((move, idx) => `
-                    <button class="btn-move" onclick="window.executePlayerMove(${idx})" ${CombatState.turn !== 'player' || player.energy < move.cost ? 'disabled' : ''}>
-                        <span class="move-name">${move.name}</span>
-                        <span class="move-cost">${move.cost > 0 ? `⚡ ${move.cost}` : 'Gratis'}</span>
-                    </button>
-                `).join('')}
+                ${player.moves.map((move, idx) => {
+                    const effMult = move.power > 0 ? getTypeEffectiveness(move.type || player.type, enemy.type) : 1.0;
+                    const effLabel = move.power > 0 ? getEffectivenessLabel(effMult) : { text: '', class: '' };
+
+                    return `
+                        <button class="btn-move" onclick="window.executePlayerMove(${idx})" ${CombatState.turn !== 'player' || player.energy < move.cost ? 'disabled' : ''}>
+                            <span class="move-name">${move.name} (${move.type || player.type})</span>
+                            <span class="move-cost">${move.cost > 0 ? `⚡ ${move.cost}` : 'Gratis'}</span>
+                            ${effLabel.text ? `<span class="move-eff ${effLabel.class}">${effLabel.text}</span>` : ''}
+                        </button>
+                    `;
+                }).join('')}
             </div>
         </div>
 
