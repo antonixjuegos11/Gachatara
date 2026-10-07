@@ -106,26 +106,59 @@ function pullGacha(amount) {
     const resultsContainer = document.getElementById('gacha-results');
     if (!resultsContainer) return;
 
+    // 1. Obtener el saldo de monedas/tickets
+    const currencies = getCurrencies();
+
+    // 2. Verificar si tiene suficientes tickets
+    if (currencies.tickets < amount) {
+        alert(`¡No tienes suficientes tickets! Necesitas ${amount} ticket(s) y tienes ${currencies.tickets}.`);
+        return;
+    }
+
+    // 3. Descontar tickets y guardar los cambios
+    currencies.tickets -= amount;
+    saveCurrencies(currencies);
+
+    // 4. Limpiar los resultados anteriores
     resultsContainer.innerHTML = '';
 
-    const results = (amount === 10) ? executeMultiPull() : [executeSinglePull()];
+    let pulls = [];
+    if (amount === 1) {
+        if (typeof executeSinglePull === 'function') {
+            const result = executeSinglePull();
+            if (result) pulls.push(result);
+        }
+    } else {
+        if (typeof executeMultiPull === 'function') {
+            pulls = executeMultiPull();
+        }
+    }
 
-    results.forEach(pkmn => {
-        if (!pkmn) return;
-
-        // 1. Guardar en el inventario del usuario y Pokédex
-        if (typeof addPokemonToInventory === 'function') {
+    // 5. Guardar cada Pokémon en el Inventario y Pokédex
+    pulls.forEach(pkmn => {
+        if (pkmn) {
             addPokemonToInventory(pkmn);
         }
+    });
 
-        // 2. Mostrar la carta en la pantalla de tirada
+    // 6. Pintar cartas en pantalla con animación
+    pulls.forEach((pkmn, index) => {
+        if (!pkmn) return;
+
+        const rawRarity = pkmn.rarity || 'comun';
+        const cleanRarityClass = rawRarity.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
         const card = document.createElement('div');
-        card.className = `pokemon-card rarity-${pkmn.rarity}`;
+        card.className = `card-pokemon ${cleanRarityClass}`;
+        // Sintaxis corregida: multiplicación (index * 0.1)
+        card.style.animationDelay = `${(index * 0.1).toFixed(2)}s`;
+
         card.innerHTML = `
-            <div class="card-id">#${String(pkmn.id).padStart(4, '0')}</div>
             <img src="${pkmn.sprite}" alt="${pkmn.name}">
-            <div class="card-name">${pkmn.name}</div>
+            <h4>${pkmn.name}</h4>
+            <div class="card-rarity">${rawRarity.toUpperCase()}</div>
         `;
+        
         resultsContainer.appendChild(card);
     });
 }

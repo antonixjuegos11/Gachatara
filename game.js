@@ -272,56 +272,6 @@ function switchTab(tabId, event) {
     }
 }
 
-// =========================================
-// SISTEMA DE RENDERIZADO DE TIRADAS GACHA
-// =========================================
-
-function pullGacha(amount) {
-    const resultsContainer = document.getElementById('gacha-results');
-    if (!resultsContainer) return;
-
-    resultsContainer.innerHTML = '';
-
-    let pulls = [];
-    if (amount === 1) {
-        if (typeof executeSinglePull === 'function') {
-            const result = executeSinglePull();
-            if (result) pulls.push(result);
-        }
-    } else {
-        if (typeof executeMultiPull === 'function') {
-            pulls = executeMultiPull();
-        }
-    }
-
-    // Guardar cada Pokémon en el Inventario y Pokédex
-    pulls.forEach(pkmn => {
-        if (pkmn) {
-            addPokemonToInventory(pkmn);
-        }
-    });
-
-    // Pintar cartas en pantalla con animación
-    pulls.forEach((pkmn, index) => {
-        if (!pkmn) return;
-
-        const rawRarity = pkmn.rarity || 'comun';
-        const cleanRarityClass = rawRarity.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-
-        const card = document.createElement('div');
-        card.className = `card-pokemon ${cleanRarityClass}`;
-        card.style.animationDelay = `${(index * 0.1).toFixed(2)}s`;
-
-        card.innerHTML = `
-            <img src="${pkmn.sprite}" alt="${pkmn.name}">
-            <h4>${pkmn.name}</h4>
-            <div class="card-rarity">${rawRarity.toUpperCase()}</div>
-        `;
-        
-        resultsContainer.appendChild(card);
-    });
-}
-
 // Inicializar vistas e interfaz al cargar la página
 document.addEventListener('DOMContentLoaded', () => {
     updateCurrenciesUI();

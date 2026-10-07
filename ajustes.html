@@ -8,7 +8,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <style>
-        /* Estilos específicos para la sección de Ajustes */
         .settings-container {
             max-width: 800px;
             margin: 120px auto 40px auto;
@@ -37,6 +36,11 @@
             margin-bottom: 20px;
         }
 
+        .settings-section.dev-section {
+            border: 1px dashed rgba(0, 242, 254, 0.5);
+            background: rgba(0, 242, 254, 0.03);
+        }
+
         .settings-section h3 {
             font-family: 'Orbitron', sans-serif;
             font-size: 1.1rem;
@@ -51,7 +55,27 @@
             line-height: 1.4;
         }
 
-        /* Botón de Peligro / Borrar Datos */
+        .btn-dev {
+            background: linear-gradient(135deg, #00f2fe, #4facfe);
+            color: #0f172a;
+            font-family: 'Rajdhani', sans-serif;
+            font-weight: 700;
+            font-size: 1rem;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 12px rgba(0, 242, 254, 0.3);
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+
+        .btn-dev:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 18px rgba(0, 242, 254, 0.5);
+        }
+
         .btn-danger {
             background: linear-gradient(135deg, #e11d48, #9f1239);
             color: #ffffff;
@@ -70,10 +94,6 @@
             background: linear-gradient(135deg, #f43f5e, #be123c);
             transform: translateY(-2px);
             box-shadow: 0 6px 18px rgba(225, 29, 72, 0.5);
-        }
-
-        .btn-danger:active {
-            transform: translateY(0);
         }
     </style>
 </head>
@@ -114,37 +134,51 @@
     <main class="settings-container">
         <h1 class="settings-title">AJUSTES DEL JUEGO</h1>
 
+        <!-- Sección: Panel de Desarrollador / Pruebas -->
+        <section class="settings-section dev-section">
+            <h3>🛠️ Modo Desarrollador (Pruebas)</h3>
+            <p>Añade recursos a tu cuenta instantáneamente para probar tiradas en el Gacha.</p>
+            <button class="btn-dev" onclick="addTickets(1000)">+1000 Tickets 🎟️</button>
+            <button class="btn-dev" onclick="addCoins(5000)">+5000 Monedas 🪙</button>
+        </section>
+
         <!-- Sección: Gestión de Datos -->
         <section class="settings-section">
             <h3>Reiniciar Datos Guardados</h3>
             <p>Borra permanentemente todo tu inventario de Pokémon capturados, tu Pokédex y el saldo de monedas. Esta acción no se puede deshacer.</p>
             <button class="btn-danger" onclick="resetGameData()">Borrar Datos Guardados</button>
         </section>
-
-        <!-- Espacio reservado para futuras configuraciones -->
-        <section class="settings-section">
-            <h3>Más opciones próximamente</h3>
-            <p>Aquí podrás configurar sonido, volumen, calidad gráfica y rendimiento en futuras actualizaciones.</p>
-        </section>
     </main>
 
+    <script src="game.js"></script>
     <script>
-        // Función para borrar los datos guardados en LocalStorage
+        // Funciones provisionales para añadir recursos fácilmente
+        function addTickets(amount) {
+            const currencies = getCurrencies();
+            currencies.tickets = (currencies.tickets || 0) + amount;
+            saveCurrencies(currencies);
+            alert(`¡Se han añadido +${amount} Tickets! Saldo actual: ${currencies.tickets}`);
+        }
+
+        function addCoins(amount) {
+            const currencies = getCurrencies();
+            currencies.coins = (currencies.coins || 0) + amount;
+            saveCurrencies(currencies);
+            alert(`¡Se han añadido +${amount} Monedas Tara! Saldo actual: ${currencies.coins}`);
+        }
+
         function resetGameData() {
             const confirmReset = confirm("¿Estás seguro de que deseas borrar todos tus Pokémon capturados, tu Pokédex y tus monedas? Esta acción es irreversible.");
             
             if (confirmReset) {
-                // Claves guardadas en localStorage
                 localStorage.removeItem('pokemon_pokedex_collection');
                 localStorage.removeItem('pokemon_user_inventory');
                 localStorage.removeItem('pokemon_user_currencies');
                 
                 alert("Los datos han sido borrados con éxito.");
-                // Redirigir al inicio del juego
                 window.location.href = "index.html";
             }
         }
     </script>
-    <script src="game.js"></script>
 </body>
 </html>
