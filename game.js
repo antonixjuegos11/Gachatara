@@ -1,4 +1,4 @@
-// game.js - Fondo de partículas, Pokédex, Inventario, Monedas y Navegación
+// game.js - Fondo de partículas, Pokédex, Inventario, Monedas, Estrellas y Modal
 
 // =========================================
 // FONDO ANIMADO DE PARTÍCULAS
@@ -49,7 +49,6 @@ if (canvas && ctx) {
 
 const CURRENCIES_KEY = 'pokemon_user_currencies';
 
-// Obtener las monedas guardadas o valores por defecto
 function getCurrencies() {
     const defaultCurrencies = { tickets: 10, shards: 100, coins: 500 };
     const saved = localStorage.getItem(CURRENCIES_KEY);
@@ -65,7 +64,6 @@ function saveCurrencies(currencies) {
     updateCurrenciesUI();
 }
 
-// Actualizar los textos del contador en el header
 function updateCurrenciesUI() {
     const currencies = getCurrencies();
     
@@ -79,46 +77,68 @@ function updateCurrenciesUI() {
 }
 
 // =========================================
-// GESTIÓN DE INVENTARIO Y POKÉDEX (LOCALSTORAGE)
+// GESTIÓN DE INVENTARIO, POKÉDEX Y ESTRELLAS
 // =========================================
 
 const POKEDEX_KEY = 'pokemon_pokedex_collection';
 const INVENTORY_KEY = 'pokemon_user_inventory';
 
-// Cargar Pokédex (desbloqueados únicos)
 const savedDex = JSON.parse(localStorage.getItem(POKEDEX_KEY) || '[]');
 const playerCollection = new Set(savedDex);
 
-// Cargar Inventario (Pokémon obtenidos con fecha/instancia)
 let userInventory = JSON.parse(localStorage.getItem(INVENTORY_KEY) || '[]');
+
+// Configuración de costes de duplicados para las 7 estrellas
+const DUPE_COSTS_PER_STAR = [1, 2, 3, 5, 8, 12, 18]; 
+
+function getDupeCostForNextStar(currentStars) {
+    if (currentStars >= 7) return null;
+    return DUPE_COSTS_PER_STAR[currentStars] || 18;
+}
+
+function getStatMultiplierForStars(stars) {
+    // Cada estrella otorga un +10% acumulativo a las estadísticas
+    return 1 + ((stars || 0) * 0.10);
+}
 
 function saveStorage() {
     localStorage.setItem(POKEDEX_KEY, JSON.stringify(Array.from(playerCollection)));
     localStorage.setItem(INVENTORY_KEY, JSON.stringify(userInventory));
 }
 
-// Añadir Pokémon al inventario del usuario
+// Añadir Pokémon al inventario del usuario (agrupando por ID y gestionando dupes)
 function addPokemonToInventory(pkmn) {
-    if (!pkmn) return;
+    if (!pkmn || !pkmn.id) return;
 
-    // Registrar en Pokédex
     playerCollection.add(Number(pkmn.id));
 
-    // Guardar copia en el inventario/equipo
-    userInventory.push({
-        ...pkmn,
-        uid: Date.now() + Math.random().toString(36).substring(2, 7) // Identificador único
-    });
+    // Comprobar si ya existe en el inventario general por ID
+    const existing = userInventory.find(item => Number(item.id) === Number(pkmn.id));
+
+    if (existing) {
+        existing.count = (existing.count || 1) + 1;
+    } else {
+        userInventory.push({
+            ...pkmn,
+            stars: 0,
+            count: 1,
+            level: pkmn.level || 10
+        });
+    }
 
     saveStorage();
+    renderInventory();
+    
+    if (typeof updateDexProgress === 'function') {
+        updateDexProgress();
+    }
 }
 
-// Renderizar Inventario / Equipo agrupado por ID y ordenado
+// Renderizar Inventario agrupado y ordenado con soporte de clic para modal
 function renderInventory() {
     const container = document.getElementById('inventory-grid') || document.getElementById('team-grid');
     const counterElem = document.getElementById('total-capturados');
 
-    // 1. Actualizar el número total en el contador del HTML
     if (counterElem) {
         counterElem.innerText = userInventory.length;
     }
@@ -132,47 +152,142 @@ function renderInventory() {
         return;
     }
 
-    // 2. Agrupar repeticiones por ID de Pokémon
-    const groupedInventory = {};
+    // Ordenar de menor a mayor por ID de Pokédex
+    const sortedInventory = [...userInventory].sort((a, b) => Number(a.id) - Number(b.id));
 
-    userInventory.forEach(pkmn => {
-        const pkmnId = Number(pkmn.id);
-        if (!groupedInventory[pkmnId]) {
-            groupedInventory[pkmnId] = {
-                ...pkmn,
-                count: 1
-            };
-        } else {
-            groupedInventory[pkmnId].count += 1;
-        }
-    });
-
-    // 3. Ordenar de menor a mayor por ID de Pokédex
-    const sortedInventory = Object.values(groupedInventory).sort((a, b) => Number(a.id) - Number(b.id));
-
-    // 4. Renderizar las cartas acumuladas
     sortedInventory.forEach(pkmn => {
         const rawRarity = pkmn.rarity || 'comun';
-        const cleanRarityClass = rawRarity
-            .toLowerCase()
-            .normalize("NFD")
-            .replace(/[\u0300-\u036f]/g, "");
+        const cleanRarityClass = rawRarity.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+        pkmn.stars = pkmn.stars || 0;
+        const starsDisplay = '★'.repeat(pkmn.stars);
 
         const card = document.createElement('div');
         card.className = `pokemon-card card-pokemon ${cleanRarityClass}`;
+        card.style.cursor = 'pointer';
         
-        // Badge de repetición si se posee más de 1 unidad
         const countBadge = pkmn.count > 1 ? `<span class="card-count-badge">x${pkmn.count}</span>` : '';
 
         card.innerHTML = `
             ${countBadge}
+            ${pkmn.stars > 0 ? `<div class="card-stars-badge" style="position: absolute; top: 5px; left: 5px; color: #f1c40f; font-size: 11px; text-shadow: 0 1px 2px #000;">${starsDisplay}</div>` : ''}
             <div class="card-id">#${String(pkmn.id).padStart(4, '0')}</div>
             <img src="${pkmn.sprite}" alt="${pkmn.name}">
             <div class="card-name">${pkmn.name}</div>
             <div class="card-rarity">${rawRarity.toUpperCase()}</div>
         `;
+
+        // Evento de clic directo para abrir la ventana modal de información
+        card.onclick = () => openPokemonModal(pkmn.id);
         container.appendChild(card);
     });
+}
+
+// =========================================
+// MODAL DE INFORMACIÓN Y DESPERTAR ESTRELLAS
+// =========================================
+
+function openPokemonModal(pokemonId) {
+    const pkmn = userInventory.find(item => Number(item.id) === Number(pokemonId));
+    if (!pkmn) return;
+
+    pkmn.stars = pkmn.stars || 0;
+    pkmn.count = pkmn.count || 1;
+
+    let modal = document.getElementById('pokemon-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'pokemon-modal';
+        modal.className = 'pokemon-modal-overlay';
+        modal.style.display = 'none';
+        modal.innerHTML = `
+            <div class="pokemon-modal-content">
+                <button class="modal-close-btn" onclick="closePokemonModal()">✖</button>
+                <div id="modal-body-content"></div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+
+    const content = document.getElementById('modal-body-content');
+    const sprite = pkmn.sprite || '';
+    const typeLabel = (pkmn.types || [pkmn.type || 'Normal']).join(' / ');
+    const abilityName = typeof getAbilityDisplayName === 'function' ? getAbilityDisplayName(pkmn.ability) : (pkmn.ability || 'Ninguna');
+
+    const nextCost = getDupeCostForNextStar(pkmn.stars);
+    // Se requiere tener al menos 1 copia base + el coste de duplicados para poder despertar
+    const canAwaken = pkmn.stars < 7 && pkmn.count > nextCost;
+    const starsDisplay = '★'.repeat(pkmn.stars) + '☆'.repeat(7 - pkmn.stars);
+
+    // Calcular estadísticas basadas en el nivel y las estrellas
+    const mult = getStatMultiplierForStars(pkmn.stars);
+    const base = pkmn.baseStats || { hp: 45, attack: 49, defense: 49, speed: 45 };
+    const level = pkmn.level || 10;
+    
+    const calcHp = Math.floor((Math.floor(((2 * base.hp) * level) / 100) + level + 10) * mult);
+    const calcAtk = Math.floor((Math.floor(((2 * base.attack) * level) / 100) + 5) * mult);
+    const calcDef = Math.floor((Math.floor(((2 * base.defense) * level) / 100) + 5) * mult);
+    const calcSpd = Math.floor((Math.floor(((2 * base.speed) * level) / 100) + 5) * mult);
+
+    content.innerHTML = `
+        <div class="modal-header-section">
+            <h2 class="modal-pkmn-name">${pkmn.name}</h2>
+            <div class="modal-stars">${starsDisplay} (Rango ${pkmn.stars}/7)</div>
+        </div>
+
+        <div class="modal-body-grid" style="display: flex; gap: 20px; align-items: center; margin-bottom: 20px;">
+            <div class="modal-sprite-box" style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 12px; text-align: center; flex: 1;">
+                <img src="${sprite}" alt="${pkmn.name}" style="width: 100px; height: 100px; object-fit: contain;">
+                <span class="modal-type-badge" style="display: inline-block; margin-top: 8px; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: bold; background: #576574; color: white;">${typeLabel}</span>
+            </div>
+
+            <div class="modal-stats-box" style="flex: 1.2; font-size: 14px; line-height: 1.6;">
+                <h3 style="margin: 0 0 10px 0; font-size: 15px; color: #7bed9f; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 4px;">Estadísticas (Nv. ${level})</h3>
+                <p>❤️ HP: <strong>${calcHp}</strong></p>
+                <p>⚔️ Ataque: <strong>${calcAtk}</strong></p>
+                <p>🛡️ Defensa: <strong>${calcDef}</strong></p>
+                <p>⚡ Velocidad: <strong>${calcSpd}</strong></p>
+                <div class="modal-ability-info" style="margin-top: 8px;">
+                    <p>✨ <strong>Habilidad:</strong> ${abilityName}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-awakening-section" style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: 10px; text-align: center;">
+            <div class="dupes-counter" style="margin-bottom: 10px; font-size: 14px; color: #dfe4ea;">
+                📦 Copias totales: <strong>${pkmn.count}</strong> (Necesitas ${nextCost + 1} para subir estrella)
+            </div>
+            ${pkmn.stars < 7 ? `
+                <button class="btn-awaken" onclick="awakenPokemon(${pkmn.id})" ${!canAwaken ? 'disabled' : ''} style="background: ${canAwaken ? '#2ed573' : '#718093'}; color: white; border: none; padding: 10px 20px; font-size: 14px; font-weight: bold; border-radius: 8px; cursor: ${canAwaken ? 'pointer' : 'not-allowed'}; width: 100%; transition: 0.2s;">
+                    🌟 Despertar Estrella (-${nextCost} copias)
+                </button>
+            ` : `
+                <div class="max-rank-text" style="color: #f1c40f; font-weight: bold; font-size: 14px;">🎉 ¡Este Pokémon ha alcanzado el Poder Máximo (7 Estrellas)!</div>
+            `}
+        </div>
+    `;
+
+    modal.style.display = 'flex';
+}
+
+function closePokemonModal() {
+    const modal = document.getElementById('pokemon-modal');
+    if (modal) modal.style.display = 'none';
+}
+
+function awakenPokemon(pokemonId) {
+    const pkmn = userInventory.find(item => Number(item.id) === Number(pokemonId));
+    if (!pkmn) return;
+
+    const nextCost = getDupeCostForNextStar(pkmn.stars);
+    if (pkmn.stars < 7 && pkmn.count > nextCost) {
+        pkmn.count -= nextCost; 
+        pkmn.stars += 1;        
+        
+        saveStorage();
+        openPokemonModal(pokemonId); 
+        renderInventory();       
+    }
 }
 
 // =========================================
@@ -192,7 +307,6 @@ function getAllPokemonFromDB() {
     return allPkmn.sort((a, b) => a.id - b.id);
 }
 
-// Renderizar Pokédex
 function renderDex() {
     const grid = document.getElementById('dex-grid');
     const counter = document.getElementById('dex-counter');
@@ -232,25 +346,19 @@ function renderDex() {
 }
 
 // =========================================
-// NAVEGACIÓN ENTRE PESTAÑAS (CORREGIDA)
+// NAVEGACIÓN ENTRE PESTAÑAS
 // =========================================
 
 function switchTab(tabId, event) {
-    // 1. Ocultar todas las pestañas
     document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
-    
-    // 2. Desmarcar todos los botones de navegación
     document.querySelectorAll('.nav-tab').forEach(btn => btn.classList.remove('active'));
 
-    // 3. Activar el contenedor de la pestaña seleccionada
     const activeTab = document.getElementById(`tab-${tabId}`);
     if (activeTab) activeTab.classList.add('active');
 
-    // 4. Activar el botón correcto
     if (event && event.currentTarget) {
         event.currentTarget.classList.add('active');
     } else {
-        // Buscar el botón correspondiente por su llamada onclick o data-tab
         const targetBtn = document.querySelector(`.nav-tab[onclick*="'${tabId}'"]`) || 
                           document.querySelector(`.nav-tab[data-tab="${tabId}"]`);
         if (targetBtn) {
@@ -258,13 +366,11 @@ function switchTab(tabId, event) {
         }
     }
 
-    // 5. Limpiar tiradas gacha si salimos de la pestaña invocación
     if (tabId !== 'invocacion') {
         const resultsContainer = document.getElementById('gacha-results');
         if (resultsContainer) resultsContainer.innerHTML = '';
     }
 
-    // 6. Actualizar vistas según la pestaña seleccionada
     if (tabId === 'dex') {
         renderDex();
     } else if (tabId === 'inventory' || tabId === 'equipo' || tabId === 'lobby') {
@@ -278,7 +384,6 @@ document.addEventListener('DOMContentLoaded', () => {
     renderInventory();
 });
 
-// Escuchar cambios de LocalStorage (por si se reinician datos en Ajustes)
 window.addEventListener('storage', () => {
     updateCurrenciesUI();
     renderInventory();
