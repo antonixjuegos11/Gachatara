@@ -1136,3 +1136,16 @@ a.nav-link {
     0%, 100% { box-shadow: 0 0 0 transparent; }
     50% { box-shadow: 0 0 20px #10b981; }
 }
+
+/* Voltea la imagen del Pokémon del jugador para que mire hacia la derecha */
+.player-card .sprite-box img {
+    transform: scaleX(-1);
+}
+
+/* Estructura simétrica de las cartas de combate */
+.combat-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}

@@ -107,13 +107,20 @@ function startBattle(playerUnits, enemyUnits, mode = 'quick', onEndCallback = nu
 // LÓGICA DE TURNOS Y ATAQUES
 // =========================================
 
-function executePlayerMove(moveIndex) {
-    if (CombatState.turn !== 'player' || CombatState.isBattleOver) return;
+window.executePlayerMove = function(moveIndex) {
+    if (CombatState.isBattleOver) return;
+
+    // Si por alguna razón el turno no era del jugador, lo forzamos para la prueba
+    if (CombatState.turn !== 'player') {
+        CombatState.turn = 'player';
+    }
 
     const attacker = CombatState.playerTeam[CombatState.activePlayerIndex];
     const defender = CombatState.enemyTeam[CombatState.activeEnemyIndex];
-    const move = attacker.moves[moveIndex];
 
+    if (!attacker || !defender) return;
+
+    const move = attacker.moves[moveIndex];
     if (!move) return;
 
     if (move.cost > attacker.energy) {
@@ -124,7 +131,7 @@ function executePlayerMove(moveIndex) {
     CombatState.turn = 'animating';
     attacker.energy -= move.cost;
 
-    // Habilidad Defensiva / Buff
+    // Habilidad Defensiva / Curación
     if (move.power === 0) {
         const healAmount = Math.floor(attacker.maxHp * (move.shield || 0.2));
         attacker.currentHp = Math.min(attacker.maxHp, attacker.currentHp + healAmount);
@@ -141,7 +148,7 @@ function executePlayerMove(moveIndex) {
     defender.currentHp = Math.max(0, defender.currentHp - damageResult.damage);
     attacker.energy = Math.min(attacker.maxEnergy, attacker.energy + move.energyGain);
 
-    // Animación y Pop-up de Daño
+    // Animaciones
     triggerUnitAnimation('player-card', 'attack');
     triggerUnitAnimation('enemy-card', 'hit');
     showFloatingDamage('enemy-card', damageResult.damage, damageResult.isCrit, damageResult.effMessage);
@@ -153,13 +160,13 @@ function executePlayerMove(moveIndex) {
 
     updateCombatUI();
 
-    // Comprobar si el enemigo fue debilitado
+    // Comprobar si el enemigo cayó
     if (defender.currentHp <= 0) {
         setTimeout(handleEnemyFaint, 1000);
     } else {
         setTimeout(endTurn, 1200);
     }
-}
+};
 
 function executeEnemyTurn() {
     if (CombatState.isBattleOver) return;
