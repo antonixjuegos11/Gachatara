@@ -258,3 +258,20 @@ function switchTab(tabName) {
 
 // Cargar inventario al iniciar la página
 document.addEventListener('DOMContentLoaded', renderInventory);
+
+// Escuchador global de clics en el inventario para asegurar que el modal siempre se abra
+document.addEventListener('click', function(event) {
+    const card = event.target.closest('.pokemon-card');
+    if (!card) return;
+
+    const inventoryGrid = document.getElementById('inventory-grid');
+    if (!inventoryGrid || !inventoryGrid.contains(card)) return;
+
+    // Obtenemos todas las cartas actuales de la rejilla para saber el índice exacto
+    const cards = Array.from(inventoryGrid.querySelectorAll('.pokemon-card'));
+    const index = cards.indexOf(card);
+
+    if (index !== -1 && typeof openPokemonModal === 'function') {
+        openPokemonModal(index);
+    }
+});
