@@ -1,4 +1,172 @@
-// habilidades.js - Motor Inteligente y Completo de Habilidades Pokémon
+// habilidades.js - Motor Inteligente de Habilidades con Traducción Completa al Español
+
+const ABILITIES_TRANSLATIONS = {
+    "stench": "Hedor",
+    "drizzle": "Llovizna",
+    "speed-boost": "Impulso",
+    "battle-armor": "Armadura Batalla",
+    "sturdy": "Robustez",
+    "damp": "Humedad",
+    "limber": "Flexibilidad",
+    "sand-veil": "Velo Arena",
+    "static": "Electricidad Estática",
+    "volt-absorb": "Absorbe Electricidad",
+    "water-absorb": "Absorbe Agua",
+    "oblivious": "Despiste",
+    "cloud-nine": "Aclimatación",
+    "compound-eyes": "Ojo Compuesto",
+    "insomnia": "Insomnio",
+    "color-change": "Cambio Color",
+    "immunity": "Inmunidad",
+    "flash-fire": "Absorbe Fuego",
+    "shield-dust": "Polvo Escudo",
+    "own-tempo": "Ritmo Propio",
+    "suction-cups": "Ventosas",
+    "intimidate": "Intimidación",
+    "shadow-tag": "Sombra Trampa",
+    "rough-skin": "Piel Tosca",
+    "wonder-guard": "Superguarda",
+    "levitate": "Levitación",
+    "effect-spore": "Efecto Espora",
+    "synchronize": "Sincronía",
+    "clear-body": "Cuerpo Puro",
+    "natural-cure": "Cura Natural",
+    "lightning-rod": "Pararrayos",
+    "serene-grace": "Dicha",
+    "swift-swim": "Nado Rápido",
+    "chlorophyll": "Clorofila",
+    "illuminate": "Iluminación",
+    "trace": "Rastro",
+    "huge-power": "Potencia",
+    "poison-point": "Punto Tóxico",
+    "inner-focus": "Foco Interno",
+    "magma-armor": "Escudo Magma",
+    "water-veil": "Velo Agua",
+    "magnet-pull": "Imán",
+    "soundproof": "Insonorizar",
+    "rain-dish": "Cura Lluvia",
+    "sand-stream": "Chorro Arena",
+    "pressure": "Presión",
+    "thick-fat": "Sebo",
+    "early-bird": "Madrugar",
+    "flame-body": "Cuerpo Llama",
+    "run-away": "Fuga",
+    "keen-eye": "Vista Lince",
+    "hyper-cutter": "Corte Fuerte",
+    "pickup": "Recogida",
+    "truant": "Ausente",
+    "hustle": "Entusiasmo",
+    "cute-charm": "Gran Encanto",
+    "plus": "Más",
+    "minus": "Menos",
+    "forecast": "Predicción",
+    "sticky-hold": "Viscosidad",
+    "shed-skin": "Mudar",
+    "guts": "Agallas",
+    "marvel-scale": "Escama Especial",
+    "liquid-ooze": "Lodo Líquido",
+    "overgrow": "Espesura",
+    "blaze": "Mar Llamas",
+    "torrent": "Torrente",
+    "swarm": "Enjambre",
+    "rock-head": "Cabeza Roca",
+    "drought": "Sequía",
+    "arena-trap": "Trampa Arena",
+    "vital-spirit": "Espíritu Vital",
+    "white-smoke": "Humo Blanco",
+    "pure-power": "Energía Pura",
+    "shell-armor": "Caparazón",
+    "cacophony": "Cacofonía",
+    "air-lock": "Bucle Aire",
+    "tangled-feet": "Tumbos",
+    "motor-drive": "Electromotor",
+    "rivalry": "Rivalidad",
+    "steadfast": "Impasible",
+    "snow-cloak": "Manto Níveo",
+    "gluttony": "Gula",
+    "anger-point": "Irascible",
+    "unburden": "Liviano",
+    "heatproof": "Ignífugo",
+    "simple": "Simple",
+    "dry-skin": "Piel Seca",
+    "download": "Descarga",
+    "iron-fist": "Puño Férreo",
+    "poison-heal": "Antídoto",
+    "adaptability": "Adaptable",
+    "skill-link": "Encadenado",
+    "hydration": "Hidratación",
+    "solar-power": "Poder Solar",
+    "quick-feet": "Pies Rápidos",
+    "normalize": "Normalidad",
+    "sniper": "Francotirador",
+    "magic-guard": "Muro Mágico",
+    "no-guard": "Indefenso",
+    "stall": "Rezagado",
+    "technician": "Experto",
+    "leaf-guard": "Defensa Hoja",
+    "klutz": "Zoquete",
+    "mold-breaker": "Rompemoldes",
+    "super-luck": "Afortunado",
+    "aftermath": "Cálculo Final",
+    "anticipation": "Anticipación",
+    "forewarn": "Alerta",
+    "unaware": "Ignorante",
+    "tinted-lens": "Cromolente",
+    "filter": "Filtro",
+    "slow-start": "Inicio Lento",
+    "scrappy": "Intrépido",
+    "storm-drain": "Colector",
+    "ice-body": "Gélido",
+    "solid-rock": "Roca Sólida",
+    "snow-warning": "Nevada",
+    "honey-gather": "Recogemiel",
+    "frisk": "Cacheo",
+    "reckless": "Audaz",
+    "multitype": "Multitipo",
+    "flower-gift": "Don Floral",
+    "bad-dreams": "Mal Sueño",
+    "pickpocket": "Hurto",
+    "sheer-force": "Poder Bruto",
+    "contrary": "Respondón",
+    "unnerve": "Nerviosismo",
+    "defiant": "Competitivo",
+    "defeatist": "Flaqueza",
+    "cursed-body": "Cuerpo Maldito",
+    "healer": "Alma Cura",
+    "friend-guard": "Compiescolta",
+    "weak-armor": "Armadura Frágil",
+    "heavy-metal": "Metal Pesado",
+    "light-metal": "Metal Liviano",
+    "multiscale": "Multiescama",
+    "toxic-boost": "Ímpetu Tóxico",
+    "flare-boost": "Ímpetu Ardiente",
+    "harvest": "Cosecha",
+    "telepathy": "Telepatía",
+    "imposter": "Impostor",
+    "moody": "Veleta",
+    "overcoat": "Funda",
+    "poison-touch": "Toque Tóxico",
+    "regenerator": "Regeneración",
+    "big-pecks": "Sacapecho",
+    "sand-rush": "Ímpetu Arena",
+    "wonder-skin": "Piel Milagro",
+    "analytic": "Cálculo Final",
+    "illusion": "Ilusión",
+    "imposter": "Impostor",
+    "infiltrator": "Allanamiento",
+    "moxie": "Autoestima",
+    "justified": "Justiciero",
+    "rattled": "Cobardía",
+    "magic-bounce": "Espejo Mágico",
+    "herbivore": "Herbívoro",
+    "prankster": "Bromista",
+    "sand-force": "Poder Arena",
+    "iron-barbs": "Punta Acero",
+    "zen-mode": "Modo Daruma",
+    "victory-star": "Tinovictoria",
+    "turboblaze": "Turbollama",
+    "teravolt": "Terravoltaje"
+};
 
 const ABILITIES_DB = {
     // --- CLASE: ENTRADA AL CAMPO (onEnter) ---
@@ -135,14 +303,22 @@ const ABILITIES_DB = {
 };
 
 /**
+ * Obtiene el nombre traducido de la habilidad de forma limpia
+ */
+function getAbilityDisplayName(abilityKey) {
+    if (!abilityKey || abilityKey === 'none') return 'Ninguna';
+    const cleanKey = abilityKey.toLowerCase().trim();
+    return ABILITIES_TRANSLATIONS[cleanKey] || formatPokemonName(cleanKey);
+}
+
+/**
  * Motor de Activación con Respaldo Inteligente (Fallback)
- * Si la habilidad viene de la PokéAPI y no está programada a mano, 
- * el motor detecta su nombre y le asigna un comportamiento coherente.
  */
 function triggerAbility(triggerType, owner, target, move = null, damage = 0, battleState = null) {
     if (!owner || !owner.ability || owner.ability === 'none') return null;
 
     const abilityKey = owner.ability.toLowerCase().trim();
+    const displayName = getAbilityDisplayName(abilityKey);
     
     // 1. Buscar en la base de datos manual
     if (ABILITIES_DB[abilityKey]) {
@@ -153,16 +329,13 @@ function triggerAbility(triggerType, owner, target, move = null, damage = 0, bat
         return null;
     }
 
-    // 2. Sistema Inteligente de Respaldo (Fallback para cualquier otra habilidad de la API)
-    // Si la habilidad contiene palabras clave en inglés de la PokéAPI, les damos vida automática:
+    // 2. Sistema Inteligente de Respaldo con nombres traducidos
     if (triggerType === 'onEnter') {
-        // Habilidades que mencionan "shield", "guard", "armor" o similares al entrar
         if (abilityKey.includes('shield') || abilityKey.includes('armor')) {
             owner.defense = Math.floor(owner.defense * 1.1);
-            return `🛡️ ¡La habilidad ${owner.ability} de ${owner.name} fortificó su defensa al entrar!`;
+            return `🛡️ ¡La habilidad ${displayName} de ${owner.name} fortificó su defensa al entrar!`;
         }
-        // Mensaje genérico de activación para habilidades de entrada oficiales (como Presión de Zapdos)
-        return `✨ ¡${owner.name} despliega su habilidad ${owner.ability}!`;
+        return `✨ ¡${owner.name} despliega su habilidad ${displayName}!`;
     }
 
     return null;
