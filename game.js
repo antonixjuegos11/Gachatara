@@ -78,30 +78,44 @@ function addPokemonToInventory(pkmn) {
     saveStorage();
 }
 
-// Renderizar Inventario / Equipo
-// Renderizar Inventario / Equipo ordenado por ID y con contador dinámico
+// Renderizar Inventario / Equipo agrupado por ID y ordenado
 function renderInventory() {
     const container = document.getElementById('inventory-grid') || document.getElementById('team-grid');
-    const counterElem = document.getElementById('total-captured');
+    const counterElem = document.getElementById('total-capturados');
+
+    // 1. Actualizar el número total en el contador del HTML
+    if (counterElem) {
+        counterElem.innerText = userInventory.length;
+    }
 
     if (!container) return;
-
-    // 1. Actualizar el contador total de capturados
-    if (counterElem) {
-        counterElem.innerText = `Total capturados: ${userInventory.length}`;
-    }
 
     container.innerHTML = '';
 
     if (userInventory.length === 0) {
-        container.innerHTML = '<p style="color: var(--text-secondary); grid-column: 1/-1; text-align: center;">No tienes Pokémon en tu inventario aún. ¡Usa el Gacha para conseguir algunos!</p>';
+        container.innerHTML = '<p style="color: var(--text-secondary); grid-column: 1/-1; text-align: center; padding: 20px;">No tienes Pokémon en tu inventario aún. ¡Usa el Gacha para conseguir algunos!</p>';
         return;
     }
 
-    // 2. Ordenar de menor a mayor por número de Pokédex (ID)
-    const sortedInventory = [...userInventory].sort((a, b) => Number(a.id) - Number(b.id));
+    // 2. Agrupar repeticiones por ID de Pokémon
+    const groupedInventory = {};
 
-    // 3. Crear las cartas alineadas
+    userInventory.forEach(pkmn => {
+        const pkmnId = Number(pkmn.id);
+        if (!groupedInventory[pkmnId]) {
+            groupedInventory[pkmnId] = {
+                ...pkmn,
+                count: 1
+            };
+        } else {
+            groupedInventory[pkmnId].count += 1;
+        }
+    });
+
+    // 3. Ordenar de menor a mayor por ID de Pokédex
+    const sortedInventory = Object.values(groupedInventory).sort((a, b) => Number(a.id) - Number(b.id));
+
+    // 4. Renderizar las cartas acumuladas
     sortedInventory.forEach(pkmn => {
         const rawRarity = pkmn.rarity || 'comun';
         const cleanRarityClass = rawRarity
@@ -111,7 +125,12 @@ function renderInventory() {
 
         const card = document.createElement('div');
         card.className = `pokemon-card card-pokemon ${cleanRarityClass}`;
+        
+        // Badge de repetición si se posee más de 1 unidad
+        const countBadge = pkmn.count > 1 ? `<span class="card-count-badge">x${pkmn.count}</span>` : '';
+
         card.innerHTML = `
+            ${countBadge}
             <div class="card-id">#${String(pkmn.id).padStart(4, '0')}</div>
             <img src="${pkmn.sprite}" alt="${pkmn.name}">
             <div class="card-name">${pkmn.name}</div>
