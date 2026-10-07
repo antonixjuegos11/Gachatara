@@ -1200,3 +1200,157 @@ a.nav-link {
     color: #ff4d4d;
     border: 1px solid #dc3545;
 }
+
+/* ========================================= */
+/* ESTILOS DEL MODAL Y ESTRELLAS DE POKÉMON  */
+/* ========================================= */
+
+.pokemon-modal-overlay {
+    position: fixed;
+    top: 0; 
+    left: 0; 
+    width: 100%; 
+    height: 100%;
+    background: rgba(0, 0, 0, 0.75);
+    display: flex; 
+    justify-content: center; 
+    align-items: center;
+    z-index: 9999;
+}
+
+.pokemon-modal-content {
+    background: #1e1e2f; 
+    color: #fff;
+    width: 90%; 
+    max-width: 500px;
+    padding: 25px; 
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    position: relative; 
+    border: 2px solid #4a4e69;
+}
+
+.modal-close-btn {
+    position: absolute; 
+    top: 15px; 
+    right: 15px;
+    background: #ff4757; 
+    border: none; 
+    color: white;
+    font-size: 16px; 
+    width: 30px; 
+    height: 30px;
+    border-radius: 50%; 
+    cursor: pointer; 
+    transition: 0.2s;
+}
+
+.modal-close-btn:hover { 
+    background: #ff6b81; 
+}
+
+.modal-header-section { 
+    text-align: center; 
+    margin-bottom: 20px; 
+}
+
+.modal-pkmn-name { 
+    margin: 0; 
+    font-size: 24px; 
+    text-transform: capitalize; 
+    color: #ffd32a; 
+}
+
+.modal-stars { 
+    color: #f1c40f; 
+    font-size: 18px; 
+    margin-top: 5px; 
+}
+
+.modal-body-grid { 
+    display: flex; 
+    gap: 20px; 
+    align-items: center; 
+    margin-bottom: 20px; 
+}
+
+.modal-sprite-box {
+    background: rgba(255, 255, 255, 0.05); 
+    padding: 15px;
+    border-radius: 12px; 
+    text-align: center; 
+    flex: 1;
+}
+
+.modal-sprite-box img { 
+    width: 100px; 
+    height: 100px; 
+    object-fit: contain; 
+}
+
+.modal-type-badge {
+    display: inline-block; 
+    margin-top: 8px; 
+    padding: 4px 10px;
+    border-radius: 6px; 
+    font-size: 12px; 
+    font-weight: bold; 
+    background: #576574;
+    color: white;
+}
+
+.modal-stats-box { 
+    flex: 1.2; 
+    font-size: 14px; 
+    line-height: 1.6; 
+}
+
+.modal-stats-box h3 { 
+    margin: 0 0 10px 0; 
+    font-size: 15px; 
+    color: #7bed9f; 
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1); 
+    padding-bottom: 4px; 
+}
+
+.modal-awakening-section { 
+    background: rgba(0, 0, 0, 0.2); 
+    padding: 15px; 
+    border-radius: 10px; 
+    text-align: center; 
+}
+
+.dupes-counter { 
+    margin-bottom: 10px; 
+    font-size: 14px; 
+    color: #dfe4ea; 
+}
+
+.btn-awaken {
+    background: #2ed573; 
+    color: white; 
+    border: none; 
+    padding: 10px 20px;
+    font-size: 14px; 
+    font-weight: bold; 
+    border-radius: 8px; 
+    cursor: pointer; 
+    width: 100%; 
+    transition: 0.2s;
+}
+
+.btn-awaken:hover:not(:disabled) { 
+    background: #26af5f; 
+}
+
+.btn-awaken.disabled { 
+    background: #718093; 
+    opacity: 0.6; 
+    cursor: not-allowed; 
+}
+
+.max-rank-text { 
+    color: #f1c40f; 
+    font-weight: bold; 
+    font-size: 14px; 
+}
