@@ -1,4 +1,4 @@
-// combat.js - Motor de Combate por Turnos con Doble Tipo y Movimientos Dinámicos
+// combat.js - Motor de Combate por Turnos Integrado con Habilidades Pasivas
 
 // =========================================
 // ESTADO Y CONFIGURACIÓN DEL COMBATE
@@ -94,13 +94,15 @@ function prepareCombatUnit(pkmn, level = 10) {
 
     let pkmnTypes = pkmn.types || (pkmn.type ? [pkmn.type] : ['Normal']);
     let base = pkmn.baseStats;
+    let ability = pkmn.ability || 'none';
 
-    if (!base && typeof DATABASE !== 'undefined') {
+    if ((!base || ability === 'none') && typeof DATABASE !== 'undefined') {
         for (const cat in DATABASE) {
             const found = DATABASE[cat].find(p => p.id === pkmn.id || p.name.toLowerCase() === pkmn.name.toLowerCase());
             if (found) {
                 if (found.baseStats) base = found.baseStats;
                 if (found.types && found.types.length > 0) pkmnTypes = found.types;
+                if (found.ability) ability = found.ability;
                 break;
             }
         }
@@ -142,6 +144,7 @@ function prepareCombatUnit(pkmn, level = 10) {
         maxEnergy: 100,
         types: pkmnTypes,
         type: pkmnTypes[0],
+        ability,
         moves: [
             { name: `Ataque ${randomMove1Type}`, type: randomMove1Type, power: 40, isSpecial: false, energyGain: 25, cost: 0 },
             { name: `Especial ${randomMove2Type}`, type: randomMove2Type, power: 90, isSpecial: true, energyGain: 0, cost: 50 },
@@ -165,13 +168,23 @@ function startBattle(playerUnits, enemyUnits, mode = 'quick', onEndCallback = nu
     CombatState.onBattleEndCallback = onEndCallback;
     CombatState.logHistory = [];
 
-    const pSpeed = CombatState.playerTeam[0].speed;
-    const eSpeed = CombatState.enemyTeam[0].speed;
-    CombatState.turn = pSpeed >= eSpeed ? 'player' : 'enemy';
+    const pActive = CombatState.playerTeam[0];
+    const eActive = CombatState.enemyTeam[0];
+
+    CombatState.turn = pActive.speed >= eActive.speed ? 'player' : 'enemy';
 
     renderCombatArena();
     addCombatLog(`¡Empieza la batalla en modo ${mode.toUpperCase()}!`);
-    addCombatLog(`${CombatState.playerTeam[0].name} vs ${CombatState.enemyTeam[0].name}`);
+    addCombatLog(`${pActive.name} vs ${eActive.name}`);
+
+    // Disparar habilidades al entrar al campo (onEnter)
+    if (typeof triggerAbility === 'function') {
+        const pEnterMsg = triggerAbility('onEnter', pActive, eActive, null, 0, CombatState);
+        if (pEnterMsg) addCombatLog(pEnterMsg);
+
+        const eEnterMsg = triggerAbility('onEnter', eActive, pActive, null, 0, CombatState);
+        if (eEnterMsg) addCombatLog(eEnterMsg);
+    }
 
     if (CombatState.turn === 'enemy') {
         setTimeout(executeEnemyTurn, 1000);
@@ -278,12 +291,22 @@ function executeEnemyTurn() {
 
 function endTurn() {
     if (CombatState.isBattleOver) return;
+
+    // Habilidades de fin de turno (onTurnEnd)
+    if (typeof triggerAbility === 'function') {
+        const pTurnMsg = triggerAbility('onTurnEnd', CombatState.playerTeam[CombatState.activePlayerIndex], CombatState.enemyTeam[CombatState.activeEnemyIndex]);
+        if (pTurnMsg) addCombatLog(pTurnMsg);
+
+        const eTurnMsg = triggerAbility('onTurnEnd', CombatState.enemyTeam[CombatState.activeEnemyIndex], CombatState.playerTeam[CombatState.activePlayerIndex]);
+        if (eTurnMsg) addCombatLog(eTurnMsg);
+    }
+
     CombatState.turn = 'enemy';
     updateCombatUI();
     setTimeout(executeEnemyTurn, 1000);
 }
 
-// FÓRMULA OFICIAL DE DAÑO DE POKÉMON
+// FÓRMULA OFICIAL DE DAÑO DE POKÉMON + HABILIDADES
 function calculateDamage(attacker, defender, move) {
     const isCrit = Math.random() < 0.0625;
     const critMult = isCrit ? 1.5 : 1.0;
@@ -306,7 +329,22 @@ function calculateDamage(attacker, defender, move) {
 
     const variation = (Math.floor(Math.random() * 16) + 85) / 100;
 
-    const finalDamage = Math.max(1, Math.floor(baseDamage * critMult * elementMult * hasSTAB * variation));
+    let finalDamage = Math.max(1, Math.floor(baseDamage * critMult * elementMult * hasSTAB * variation));
+
+    // Evaluar habilidades de daño (onDamage / onReceiveDamage)
+    if (typeof triggerAbility === 'function') {
+        const atkAbility = triggerAbility('onDamage', attacker, defender, move, finalDamage, CombatState);
+        if (atkAbility) {
+            finalDamage = atkAbility.damage;
+            if (atkAbility.message) addCombatLog(atkAbility.message);
+        }
+
+        const defAbility = triggerAbility('onReceiveDamage', defender, attacker, move, finalDamage, CombatState);
+        if (defAbility) {
+            finalDamage = defAbility.damage;
+            if (defAbility.message) addCombatLog(defAbility.message);
+        }
+    }
 
     return { damage: finalDamage, isCrit, effMessage: effInfo.text, elementMult };
 }
@@ -322,7 +360,14 @@ function handleEnemyFaint() {
     if (CombatState.activeEnemyIndex >= CombatState.enemyTeam.length) {
         finishBattle(true);
     } else {
-        addCombatLog(`⚠️ ¡El rival envía a ${CombatState.enemyTeam[CombatState.activeEnemyIndex].name}!`);
+        const newEnemy = CombatState.enemyTeam[CombatState.activeEnemyIndex];
+        addCombatLog(`⚠️ ¡El rival envía a ${newEnemy.name}!`);
+
+        if (typeof triggerAbility === 'function') {
+            const eEnterMsg = triggerAbility('onEnter', newEnemy, CombatState.playerTeam[CombatState.activePlayerIndex], null, 0, CombatState);
+            if (eEnterMsg) addCombatLog(eEnterMsg);
+        }
+
         CombatState.turn = 'player';
         renderCombatArena();
     }
@@ -335,7 +380,14 @@ function handlePlayerFaint() {
     if (CombatState.activePlayerIndex >= CombatState.playerTeam.length) {
         finishBattle(false);
     } else {
-        addCombatLog(`⚠️ ¡Adelante, ${CombatState.playerTeam[CombatState.activePlayerIndex].name}!`);
+        const newPlayer = CombatState.playerTeam[CombatState.activePlayerIndex];
+        addCombatLog(`⚠️ ¡Adelante, ${newPlayer.name}!`);
+
+        if (typeof triggerAbility === 'function') {
+            const pEnterMsg = triggerAbility('onEnter', newPlayer, CombatState.enemyTeam[CombatState.activeEnemyIndex], null, 0, CombatState);
+            if (pEnterMsg) addCombatLog(pEnterMsg);
+        }
+
         CombatState.turn = 'player';
         renderCombatArena();
     }
