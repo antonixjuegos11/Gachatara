@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gacha RPG | Ajustes</title>
+    <!-- Fuentes Gamer Pro -->
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* Estilos específicos para la sección de Ajustes */
+        .settings-container {
+            max-width: 800px;
+            margin: 120px auto 40px auto;
+            padding: 30px;
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid rgba(0, 242, 254, 0.3);
+            border-radius: 12px;
+            box-shadow: 0 0 25px rgba(0, 0, 0, 0.5);
+            color: #ffffff;
+        }
+
+        .settings-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.8rem;
+            color: #00f2fe;
+            margin-bottom: 25px;
+            border-bottom: 2px solid rgba(0, 242, 254, 0.2);
+            padding-bottom: 10px;
+        }
+
+        .settings-section {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .settings-section h3 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.1rem;
+            color: #f8fafc;
+            margin-bottom: 10px;
+        }
+
+        .settings-section p {
+            font-size: 0.9rem;
+            color: #94a3b8;
+            margin-bottom: 15px;
+            line-height: 1.4;
+        }
+
+        /* Botón de Peligro / Borrar Datos */
+        .btn-danger {
+            background: linear-gradient(135deg, #e11d48, #9f1239);
+            color: #ffffff;
+            font-family: 'Rajdhani', sans-serif;
+            font-weight: 700;
+            font-size: 1rem;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 12px rgba(225, 29, 72, 0.3);
+        }
+
+        .btn-danger:hover {
+            background: linear-gradient(135deg, #f43f5e, #be123c);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 18px rgba(225, 29, 72, 0.5);
+        }
+
+        .btn-danger:active {
+            transform: translateY(0);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Fondo Animado de Partículas -->
+    <canvas id="particles-canvas"></canvas>
+
+    <!-- BANNER SUPERIOR DE NAVEGACIÓN -->
+    <header class="top-header">
+        <div class="logo-title">
+            <span class="game-tag">GACHATARA</span>
+        </div>
+        <nav class="nav-bar">
+            <a href="index.html" class="nav-tab nav-link">Volver al Juego</a>
+            <span class="nav-tab active">Ajustes</span>
+        </nav>
+    </header>
+
+    <!-- CONTENIDO DE AJUSTES -->
+    <main class="settings-container">
+        <h1 class="settings-title">AJUSTES DEL JUEGO</h1>
+
+        <!-- Sección: Gestión de Datos -->
+        <section class="settings-section">
+            <h3>Reiniciar Datos Guardados</h3>
+            <p>Borra permanentemente todo tu inventario de Pokémon capturados y tu progreso en la Pokédex. Esta acción no se puede deshacer.</p>
+            <button class="btn-danger" onclick="resetGameData()">Borrar Datos Guardados</button>
+        </section>
+
+        <!-- Espacio reservado para futuras configuraciones -->
+        <section class="settings-section">
+            <h3>Más opciones próximamente</h3>
+            <p>Aquí podrás configurar sonido, volumen, calidad gráfica y rendimiento en futuras actualizaciones.</p>
+        </section>
+    </main>
+
+    <script>
+        // Función para borrar los datos guardados en LocalStorage
+        function resetGameData() {
+            const confirmReset = confirm("¿Estás seguro de que deseas borrar todos tus Pokémon capturados y reiniciar la Pokédex? Esta acción es irreversible.");
+            
+            if (confirmReset) {
+                // Claves guardadas en localStorage
+                localStorage.removeItem('pokemon_pokedex_collection');
+                localStorage.removeItem('pokemon_user_inventory');
+                
+                alert("Los datos han sido borrados con éxito.");
+                // Redirigir al inicio del juego
+                window.location.href = "index.html";
+            }
+        }
+    </script>
+    <script src="game.js"></script>
+</body>
+</html>
