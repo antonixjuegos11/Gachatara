@@ -869,3 +869,40 @@ body {
     border: 1px solid rgba(255, 255, 255, 0.6);
     z-index: 2;
 }
+/* =========================================
+   SISTEMA DE PESTAÑAS (TAB SYSTEM)
+   ========================================= */
+
+/* Todas las pestañas ocultas por defecto */
+.tab-content {
+    display: none !important;
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding-top: 100px; /* Espacio para que no lo tape el header fijo */
+    box-sizing: border-box;
+}
+
+/* Solo la pestaña con la clase .active se muestra */
+.tab-content.active {
+    display: block !important;
+}
+
+/* Alineación para la pestaña del Lobby */
+#tab-lobby.active {
+    display: flex !important;
+    justify-content: center;
+    align-items: center;
+    min-height: calc(100vh - 100px);
+}
+
+/* Asegurar que la cabecera no tape el contenido */
+.top-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    z-index: 1000;
+    background: rgba(10, 15, 30, 0.9);
+    backdrop-filter: blur(10px);
+}
