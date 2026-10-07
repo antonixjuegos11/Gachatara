@@ -89,27 +89,35 @@ function getEffectivenessLabel(mult) {
 // INICIALIZACIÓN Y PREPARACIÓN
 // =========================================
 
-function prepareCombatUnit(pkmn, level = 5) {
+function prepareCombatUnit(pkmn, level = 10) {
     if (!pkmn) return null;
 
-    // Recuperar tipos reales desde DATABASE si la unidad guardada no los tiene
-    let pkmnTypes = pkmn.types || (pkmn.type ? [pkmn.type] : null);
+    let pkmnTypes = pkmn.types || (pkmn.type ? [pkmn.type] : ['Normal']);
+    let base = pkmn.baseStats;
 
-    if (!pkmnTypes || pkmnTypes.length === 0 || pkmnTypes[0] === 'Normal') {
-        if (typeof DATABASE !== 'undefined') {
-            for (const category in DATABASE) {
-                const found = DATABASE[category].find(p => p.id === pkmn.id || p.name.toLowerCase() === pkmn.name.toLowerCase());
-                if (found && found.types && found.types.length > 0) {
-                    pkmnTypes = found.types;
-                    break;
-                }
+    if (!base && typeof DATABASE !== 'undefined') {
+        for (const cat in DATABASE) {
+            const found = DATABASE[cat].find(p => p.id === pkmn.id || p.name.toLowerCase() === pkmn.name.toLowerCase());
+            if (found) {
+                if (found.baseStats) base = found.baseStats;
+                if (found.types && found.types.length > 0) pkmnTypes = found.types;
+                break;
             }
         }
     }
 
-    if (!pkmnTypes || pkmnTypes.length === 0) pkmnTypes = ['Normal'];
+    if (!base) {
+        base = { hp: 45, attack: 49, defense: 49, spAtk: 65, spDef: 65, speed: 45 };
+    }
 
-    // Seleccionar tipos para los ataques de entre los tipos propios del Pokémon
+    // FÓRMULA OFICIAL DE STATS SEGÚN EL NIVEL
+    const maxHp = Math.floor(((2 * base.hp) * level) / 100) + level + 10;
+    const attack = Math.floor(((2 * base.attack) * level) / 100) + 5;
+    const defense = Math.floor(((2 * base.defense) * level) / 100) + 5;
+    const spAtk = Math.floor(((2 * base.spAtk) * level) / 100) + 5;
+    const spDef = Math.floor(((2 * base.spDef) * level) / 100) + 5;
+    const speed = Math.floor(((2 * base.speed) * level) / 100) + 5;
+
     const randomMove1Type = pkmnTypes[Math.floor(Math.random() * pkmnTypes.length)];
     let randomMove2Type = pkmnTypes[1] || pkmnTypes[0];
 
@@ -120,22 +128,6 @@ function prepareCombatUnit(pkmn, level = 5) {
         }
     }
 
-    const baseHp = pkmn.hp || 50;
-    const baseAtk = pkmn.attack || 15;
-    const baseDef = pkmn.defense || 10;
-    const baseSpd = pkmn.speed || 10;
-
-    let rarityMult = 1.0;
-    const rarity = (pkmn.rarity || 'comun').toLowerCase();
-    if (rarity.includes('raro')) rarityMult = 1.25;
-    if (rarity.includes('epico') || rarity.includes('épico')) rarityMult = 1.5;
-    if (rarity.includes('legendario')) rarityMult = 2.0;
-
-    const maxHp = Math.floor((baseHp * 2 + 10) * (level / 10) * rarityMult);
-    const attack = Math.floor((baseAtk * 1.5 + 5) * (level / 10) * rarityMult);
-    const defense = Math.floor((baseDef * 1.2 + 5) * (level / 10) * rarityMult);
-    const speed = Math.floor((baseSpd * 1.2 + 5) * (level / 10) * rarityMult);
-
     return {
         ...pkmn,
         level,
@@ -143,14 +135,16 @@ function prepareCombatUnit(pkmn, level = 5) {
         currentHp: maxHp,
         attack,
         defense,
+        spAtk,
+        spDef,
         speed,
         energy: 0,
         maxEnergy: 100,
         types: pkmnTypes,
         type: pkmnTypes[0],
         moves: [
-            { name: `Ataque ${randomMove1Type}`, type: randomMove1Type, power: 1.0, energyGain: 25, cost: 0 },
-            { name: `Ataque ${randomMove2Type}`, type: randomMove2Type, power: 1.8, energyGain: 0, cost: 50 },
+            { name: `Ataque ${randomMove1Type}`, type: randomMove1Type, power: 40, isSpecial: false, energyGain: 25, cost: 0 },
+            { name: `Especial ${randomMove2Type}`, type: randomMove2Type, power: 90, isSpecial: true, energyGain: 0, cost: 50 },
             { name: 'Habilidad Defensiva', type: 'Normal', power: 0, shield: 0.3, energyGain: 15, cost: 30 }
         ]
     };
@@ -289,8 +283,9 @@ function endTurn() {
     setTimeout(executeEnemyTurn, 1000);
 }
 
+// FÓRMULA OFICIAL DE DAÑO DE POKÉMON
 function calculateDamage(attacker, defender, move) {
-    const isCrit = Math.random() < 0.15;
+    const isCrit = Math.random() < 0.0625;
     const critMult = isCrit ? 1.5 : 1.0;
 
     const atkType = move.type || attacker.type || 'Normal';
@@ -301,9 +296,17 @@ function calculateDamage(attacker, defender, move) {
         return { damage: 0, isCrit: false, effMessage: effInfo.text, elementMult };
     }
 
-    const rawDamage = ((attacker.attack * (move.power || 1.0)) - (defender.defense * 0.4)) * critMult * elementMult;
-    const variation = 0.9 + Math.random() * 0.2;
-    const finalDamage = Math.max(5, Math.floor(rawDamage * variation));
+    const atkStat = move.isSpecial ? attacker.spAtk : attacker.attack;
+    const defStat = move.isSpecial ? defender.spDef : defender.defense;
+
+    const hasSTAB = attacker.types && attacker.types.includes(atkType) ? 1.5 : 1.0;
+
+    const levelFactor = ((2 * attacker.level) / 5) + 2;
+    const baseDamage = ((levelFactor * move.power * (atkStat / defStat)) / 50) + 2;
+
+    const variation = (Math.floor(Math.random() * 16) + 85) / 100;
+
+    const finalDamage = Math.max(1, Math.floor(baseDamage * critMult * elementMult * hasSTAB * variation));
 
     return { damage: finalDamage, isCrit, effMessage: effInfo.text, elementMult };
 }

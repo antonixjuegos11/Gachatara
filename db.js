@@ -1,4 +1,4 @@
-// db.js - Carga dinámica de las 9 Generaciones, Ultraentes Legendarios y Unietapas Raros
+// db.js - Carga dinámica de las 9 Generaciones, Ultraentes Legendarios y Megas con Stats Oficiales
 
 const DATABASE = {
     comun: [],
@@ -106,14 +106,28 @@ async function initSecretMegas() {
             if (!res.ok) continue;
             const data = await res.json();
 
-            // Extraer y traducir los tipos
+            // Extraer y traducir tipos
             const types = data.types.map(t => TYPE_TRANSLATIONS[t.type.name] || 'Normal');
+
+            // Extraer estadísticas base oficiales
+            const stats = {};
+            data.stats.forEach(s => {
+                stats[s.stat.name] = s.base_stat;
+            });
 
             DATABASE.secreto.push({
                 id: nextDexId,
                 name: displayName,
                 types: types,
                 type: types[0],
+                baseStats: {
+                    hp: stats['hp'] || 80,
+                    attack: stats['attack'] || 100,
+                    defense: stats['defense'] || 100,
+                    spAtk: stats['special-attack'] || 100,
+                    spDef: stats['special-defense'] || 100,
+                    speed: stats['speed'] || 100
+                },
                 stage: 4,
                 rarity: "secreto",
                 sprite: data.sprites.front_default || `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${data.id}.png`
@@ -125,7 +139,7 @@ async function initSecretMegas() {
     }
 }
 
-// Carga automática de Pokémon base y Ultraentes con ejecución optimizada en lotes
+// Carga automática de Pokémon base y Ultraentes
 async function loadFullDatabase() {
     try {
         console.log("Iniciando carga de la base de datos...");
@@ -144,7 +158,7 @@ async function loadFullDatabase() {
 
         const evoChainCache = new Map();
         const results = [];
-        const BATCH_SIZE = 25; // Procesa en bloques de 25 para optimizar el rendimiento
+        const BATCH_SIZE = 25;
 
         for (let i = 0; i < data.results.length; i += BATCH_SIZE) {
             const batch = data.results.slice(i, i + BATCH_SIZE);
@@ -153,7 +167,6 @@ async function loadFullDatabase() {
                 const id = i + index + 1;
 
                 try {
-                    // Consultar los datos del Pokémon (para tipos) y especies (para rareza) en paralelo
                     const [pkmnRes, specRes] = await Promise.all([
                         fetch(`https://pokeapi.co/api/v2/pokemon/${id}/`),
                         fetch(`https://pokeapi.co/api/v2/pokemon-species/${id}/`)
@@ -164,8 +177,14 @@ async function loadFullDatabase() {
                     const pkmnData = await pkmnRes.json();
                     const specData = await specRes.json();
 
-                    // Mapear los tipos
+                    // Mapear tipos
                     const types = pkmnData.types.map(t => TYPE_TRANSLATIONS[t.type.name] || 'Normal');
+
+                    // Mapear estadísticas base oficiales
+                    const stats = {};
+                    pkmnData.stats.forEach(s => {
+                        stats[s.stat.name] = s.base_stat;
+                    });
 
                     let rarity = "comun";
                     const isUltraBeast = (id >= 793 && id <= 800) || (id >= 803 && id <= 806);
@@ -202,6 +221,14 @@ async function loadFullDatabase() {
                         name: formatPokemonName(pkmn.name),
                         types: types,
                         type: types[0],
+                        baseStats: {
+                            hp: stats['hp'] || 50,
+                            attack: stats['attack'] || 50,
+                            defense: stats['defense'] || 50,
+                            spAtk: stats['special-attack'] || 50,
+                            spDef: stats['special-defense'] || 50,
+                            speed: stats['speed'] || 50
+                        },
                         stage: rarity === 'comun' ? 1 : rarity === 'raro' ? 2 : 3,
                         rarity: rarity,
                         sprite: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`
@@ -212,6 +239,7 @@ async function loadFullDatabase() {
                         name: formatPokemonName(pkmn.name),
                         types: ["Normal"],
                         type: "Normal",
+                        baseStats: { hp: 50, attack: 50, defense: 50, spAtk: 50, spDef: 50, speed: 50 },
                         stage: 1,
                         rarity: "comun",
                         sprite: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`
@@ -230,7 +258,7 @@ async function loadFullDatabase() {
             }
         });
 
-        console.log("¡Base de datos cargada y lista con éxito!", DATABASE);
+        console.log("¡Base de datos cargada con estadísticas oficiales!", DATABASE);
     } catch (error) {
         console.error("Error al cargar la base de datos:", error);
     }
