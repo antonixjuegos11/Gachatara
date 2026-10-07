@@ -1,4 +1,4 @@
-// combat.js - Motor de Combate por Turnos Integrado con Habilidades Pasivas
+// combat.js - Motor de Combate por Turnos Integrado con Habilidades y Estados Alterados
 
 // =========================================
 // ESTADO Y CONFIGURACIÓN DEL COMBATE
@@ -86,7 +86,7 @@ function getEffectivenessLabel(mult) {
 }
 
 // =========================================
-// INICIALIZACIÓN Y PREPARACIÓN
+// INICIALIZACIÓN Y PREPARACIÓN (CON MOVIMIENTOS DINÁMICOS)
 // =========================================
 
 function prepareCombatUnit(pkmn, level = 10) {
@@ -120,15 +120,48 @@ function prepareCombatUnit(pkmn, level = 10) {
     const spDef = Math.floor(((2 * base.spDef) * level) / 100) + 5;
     const speed = Math.floor(((2 * base.speed) * level) / 100) + 5;
 
-    const randomMove1Type = pkmnTypes[Math.floor(Math.random() * pkmnTypes.length)];
-    let randomMove2Type = pkmnTypes[1] || pkmnTypes[0];
+    const primaryType = pkmnTypes[0];
+    const secondaryType = pkmnTypes[1] || primaryType;
 
-    if (pkmnTypes.length > 1) {
-        const remaining = pkmnTypes.filter(t => t !== randomMove1Type);
-        if (remaining.length > 0) {
-            randomMove2Type = remaining[Math.floor(Math.random() * remaining.length)];
+    // Diccionario de efectos y estados secundarios según el arquetipo elemental
+    const typeEffects = {
+        "Fuego": { status: "burned", chance: 0.25 },
+        "Eléctrico": { status: "paralyzed", chance: 0.3 },
+        "Veneno": { status: "poisoned", chance: 0.4 },
+        "Hielo": { status: "frozen", chance: 0.15 },
+        "Planta": { status: "poisoned", chance: 0.25 }
+    };
+
+    const effectData = typeEffects[primaryType] || { status: null, chance: 0 };
+
+    const dynamicMoves = [
+        { 
+            name: `Ataque ${primaryType}`, 
+            type: primaryType, 
+            power: 40, 
+            isSpecial: false, 
+            energyGain: 25, 
+            cost: 0,
+            statusEffect: effectData.status,
+            statusChance: effectData.chance
+        },
+        { 
+            name: `Especial ${secondaryType}`, 
+            type: secondaryType, 
+            power: 90, 
+            isSpecial: true, 
+            energyGain: 0, 
+            cost: 50
+        },
+        { 
+            name: 'Habilidad Defensiva', 
+            type: 'Normal', 
+            power: 0, 
+            shield: 0.3, 
+            energyGain: 15, 
+            cost: 30 
         }
-    }
+    ];
 
     return {
         ...pkmn,
@@ -143,13 +176,10 @@ function prepareCombatUnit(pkmn, level = 10) {
         energy: 0,
         maxEnergy: 100,
         types: pkmnTypes,
-        type: pkmnTypes[0],
+        type: primaryType,
         ability,
-        moves: [
-            { name: `Ataque ${randomMove1Type}`, type: randomMove1Type, power: 40, isSpecial: false, energyGain: 25, cost: 0 },
-            { name: `Especial ${randomMove2Type}`, type: randomMove2Type, power: 90, isSpecial: true, energyGain: 0, cost: 50 },
-            { name: 'Habilidad Defensiva', type: 'Normal', power: 0, shield: 0.3, energyGain: 15, cost: 30 }
-        ]
+        status: null, // Estado alterado actual (paralyzed, burned, poisoned, etc.)
+        moves: dynamicMoves
     };
 }
 
@@ -192,6 +222,29 @@ function startBattle(playerUnits, enemyUnits, mode = 'quick', onEndCallback = nu
 }
 
 // =========================================
+// GESTIÓN DE ESTADOS ALTERADOS EN TURNO
+// =========================================
+
+function processStatusBeforeTurn(unit) {
+    if (!unit || !unit.status) return false;
+
+    // Daño por Veneno o Quemadura al inicio del turno
+    if (unit.status === "poisoned" || unit.status === "burned") {
+        const statusDamage = Math.max(1, Math.floor(unit.maxHp * 0.1));
+        unit.currentHp = Math.max(0, unit.currentHp - statusDamage);
+        addCombatLog(`⚠️ ${unit.name} sufre por su estado (${unit.status}) y pierde ${statusDamage} HP.`);
+    }
+
+    // Parálisis: 25% de probabilidad de no poder moverse
+    if (unit.status === "paralyzed" && Math.random() < 0.25) {
+        addCombatLog(`⚡ ¡${unit.name} está tan paralizado que no puede moverse!`);
+        return true; // Turno bloqueado
+    }
+
+    return false; // Turno libre
+}
+
+// =========================================
 // LÓGICA DE ATAQUE Y CÁLCULO DE DAÑO
 // =========================================
 
@@ -206,6 +259,17 @@ window.executePlayerMove = function(moveIndex) {
     const defender = CombatState.enemyTeam[CombatState.activeEnemyIndex];
 
     if (!attacker || !defender) return;
+
+    // Comprobar efectos de estado antes de actuar
+    if (processStatusBeforeTurn(attacker)) {
+        updateCombatUI();
+        if (attacker.currentHp <= 0) {
+            setTimeout(handlePlayerFaint, 1000);
+        } else {
+            setTimeout(endTurn, 1200);
+        }
+        return;
+    }
 
     const move = attacker.moves[moveIndex];
     if (!move) return;
@@ -233,6 +297,12 @@ window.executePlayerMove = function(moveIndex) {
     defender.currentHp = Math.max(0, defender.currentHp - damageResult.damage);
     attacker.energy = Math.min(attacker.maxEnergy, attacker.energy + move.energyGain);
 
+    // Aplicar estado alterado secundario si el movimiento lo permite y acierta la probabilidad
+    if (move.statusEffect && !defender.status && Math.random() < (move.statusChance || 0.2)) {
+        defender.status = move.statusEffect;
+        addCombatLog(`🦠 ¡${defender.name} ha sido afectado por ${move.statusEffect}!`);
+    }
+
     triggerUnitAnimation('player-card', 'attack');
     triggerUnitAnimation('enemy-card', 'hit');
     showFloatingDamage('enemy-card', damageResult.damage, damageResult.isCrit, damageResult.effMessage);
@@ -257,6 +327,19 @@ function executeEnemyTurn() {
     const attacker = CombatState.enemyTeam[CombatState.activeEnemyIndex];
     const defender = CombatState.playerTeam[CombatState.activePlayerIndex];
 
+    if (processStatusBeforeTurn(attacker)) {
+        updateCombatUI();
+        if (attacker.currentHp <= 0) {
+            setTimeout(handleEnemyFaint, 1000);
+        } else {
+            setTimeout(() => {
+                CombatState.turn = 'player';
+                updateCombatUI();
+            }, 1200);
+        }
+        return;
+    }
+
     let selectedMove = attacker.moves[0];
     if (attacker.energy >= 50 && attacker.moves[1]) {
         selectedMove = attacker.moves[1];
@@ -267,6 +350,11 @@ function executeEnemyTurn() {
     const damageResult = calculateDamage(attacker, defender, selectedMove);
     defender.currentHp = Math.max(0, defender.currentHp - damageResult.damage);
     attacker.energy = Math.min(attacker.maxEnergy, attacker.energy + selectedMove.energyGain);
+
+    if (selectedMove.statusEffect && !defender.status && Math.random() < (selectedMove.statusChance || 0.2)) {
+        defender.status = selectedMove.statusEffect;
+        addCombatLog(`🦠 ¡Tu ${defender.name} ha sido afectado por ${selectedMove.statusEffect}!`);
+    }
 
     triggerUnitAnimation('enemy-card', 'attack');
     triggerUnitAnimation('player-card', 'hit');
@@ -306,7 +394,7 @@ function endTurn() {
     setTimeout(executeEnemyTurn, 1000);
 }
 
-// FÓRMULA OFICIAL DE DAÑO DE POKÉMON + HABILIDADES
+// FÓRMULA OFICIAL DE DAÑO DE POKÉMON + HABILIDADES + QUEMADURA
 function calculateDamage(attacker, defender, move) {
     const isCrit = Math.random() < 0.0625;
     const critMult = isCrit ? 1.5 : 1.0;
@@ -319,8 +407,13 @@ function calculateDamage(attacker, defender, move) {
         return { damage: 0, isCrit: false, effMessage: effInfo.text, elementMult };
     }
 
-    const atkStat = move.isSpecial ? attacker.spAtk : attacker.attack;
+    let atkStat = move.isSpecial ? attacker.spAtk : attacker.attack;
     const defStat = move.isSpecial ? defender.spDef : defender.defense;
+
+    // Si el atacante está quemado, su daño físico se reduce a la mitad
+    if (attacker.status === "burned" && !move.isSpecial) {
+        atkStat = Math.floor(atkStat * 0.5);
+    }
 
     const hasSTAB = attacker.types && attacker.types.includes(atkType) ? 1.5 : 1.0;
 
