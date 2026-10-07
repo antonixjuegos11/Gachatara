@@ -1,4 +1,4 @@
-// combat.js - Motor de Combate por Turnos (PvE / PvP Asíncrono)
+// combat.js - Motor de Combate por Turnos con Doble Tipo y Movimientos Dinámicos
 
 // =========================================
 // ESTADO Y CONFIGURACIÓN DEL COMBATE
@@ -16,10 +16,7 @@ const CombatState = {
     logHistory: []
 };
 
-// =========================================
-// TABLA DE TIPOS COMPLETA Y EFECTIVIDAD
-// =========================================
-
+// Tabla elemental completa en español
 const TYPE_CHART = {
     Normal:   { Roca: 0.5, Fantasma: 0, Acero: 0.5 },
     Fuego:    { Fuego: 0.5, Agua: 0.5, Planta: 2.0, Hielo: 2.0, Bicho: 2.0, Roca: 0.5, Dragón: 0.5, Acero: 2.0 },
@@ -42,34 +39,45 @@ const TYPE_CHART = {
 };
 
 /**
- * Obtiene el multiplicador de daño entre dos tipos
+ * Normaliza nombres de tipos para asegurar coincidencias con TYPE_CHART
  */
+function normalizeType(typeStr) {
+    if (!typeStr) return "Normal";
+    const clean = typeStr.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    
+    const typeMap = {
+        normal: "Normal", fuego: "Fuego", agua: "Agua", planta: "Planta",
+        electrico: "Eléctrico", hielo: "Hielo", lucha: "Lucha", veneno: "Veneno",
+        tierra: "Tierra", volador: "Volador", psiquico: "Psíquico", bicho: "Bicho",
+        roca: "Roca", fantasma: "Fantasma", dragon: "Dragón", siniestro: "Siniestro",
+        acero: "Acero", hada: "Hada"
+    };
+
+    return typeMap[clean] || "Normal";
+}
+
 /**
- * Obtiene el multiplicador de daño considerando si el objetivo tiene 1 o 2 tipos
+ * Obtiene el multiplicador acumulado evaluando todos los tipos del defensor
  */
 function getTypeEffectiveness(moveType, target) {
     if (!moveType || !target) return 1.0;
 
-    const atk = moveType.charAt(0).toUpperCase() + moveType.slice(1).toLowerCase();
-    
-    // Obtener lista de tipos del objetivo (array 'types' o cadena 'type')
-    const targetTypes = target.types || [target.type || 'Normal'];
+    const atkType = normalizeType(moveType);
+    let targetTypes = target.types || (target.type ? [target.type] : ['Normal']);
+    if (!Array.isArray(targetTypes)) targetTypes = [targetTypes];
 
     let totalMult = 1.0;
 
     targetTypes.forEach(t => {
-        const def = t.charAt(0).toUpperCase() + t.slice(1).toLowerCase();
-        if (TYPE_CHART[atk] && TYPE_CHART[atk][def] !== undefined) {
-            totalMult *= TYPE_CHART[atk][def];
+        const defType = normalizeType(t);
+        if (TYPE_CHART[atkType] && TYPE_CHART[atkType][defType] !== undefined) {
+            totalMult *= TYPE_CHART[atkType][defType];
         }
     });
 
     return totalMult;
 }
 
-/**
- * Devuelve un texto formateado con badge de efectividad
- */
 function getEffectivenessLabel(mult) {
     if (mult >= 2.0) return { text: "💥 SuperEfectivo", class: "eff-super" };
     if (mult === 0) return { text: "🚫 Inmune", class: "eff-immune" };
@@ -78,14 +86,39 @@ function getEffectivenessLabel(mult) {
 }
 
 // =========================================
-// INICIALIZACIÓN Y ENTRADA AL COMBATE
+// INICIALIZACIÓN Y PREPARACIÓN
 // =========================================
 
-/**
- * Prepara las estadísticas de combate de un Pokémon basándose en su rareza y nivel
- */
 function prepareCombatUnit(pkmn, level = 5) {
     if (!pkmn) return null;
+
+    // Recuperar tipos reales desde DATABASE si la unidad guardada no los tiene
+    let pkmnTypes = pkmn.types || (pkmn.type ? [pkmn.type] : null);
+
+    if (!pkmnTypes || pkmnTypes.length === 0 || pkmnTypes[0] === 'Normal') {
+        if (typeof DATABASE !== 'undefined') {
+            for (const category in DATABASE) {
+                const found = DATABASE[category].find(p => p.id === pkmn.id || p.name.toLowerCase() === pkmn.name.toLowerCase());
+                if (found && found.types && found.types.length > 0) {
+                    pkmnTypes = found.types;
+                    break;
+                }
+            }
+        }
+    }
+
+    if (!pkmnTypes || pkmnTypes.length === 0) pkmnTypes = ['Normal'];
+
+    // Seleccionar tipos para los ataques de entre los tipos propios del Pokémon
+    const randomMove1Type = pkmnTypes[Math.floor(Math.random() * pkmnTypes.length)];
+    let randomMove2Type = pkmnTypes[1] || pkmnTypes[0];
+
+    if (pkmnTypes.length > 1) {
+        const remaining = pkmnTypes.filter(t => t !== randomMove1Type);
+        if (remaining.length > 0) {
+            randomMove2Type = remaining[Math.floor(Math.random() * remaining.length)];
+        }
+    }
 
     const baseHp = pkmn.hp || 50;
     const baseAtk = pkmn.attack || 15;
@@ -103,11 +136,6 @@ function prepareCombatUnit(pkmn, level = 5) {
     const defense = Math.floor((baseDef * 1.2 + 5) * (level / 10) * rarityMult);
     const speed = Math.floor((baseSpd * 1.2 + 5) * (level / 10) * rarityMult);
 
-    // Obtener array de tipos del Pokémon
-    const types = pkmn.types || [pkmn.type || 'Normal'];
-    const primaryType = types[0] || 'Normal';
-    const secondaryType = types[1] || primaryType; // Si no tiene segundo tipo, usa el primero
-
     return {
         ...pkmn,
         level,
@@ -118,38 +146,16 @@ function prepareCombatUnit(pkmn, level = 5) {
         speed,
         energy: 0,
         maxEnergy: 100,
-        types: types,
-        type: primaryType,
+        types: pkmnTypes,
+        type: pkmnTypes[0],
         moves: [
-            { 
-                name: `Ataque ${primaryType}`, 
-                type: primaryType, 
-                power: 1.0, 
-                energyGain: 25, 
-                cost: 0 
-            },
-            { 
-                name: `Ataque ${secondaryType}`, 
-                type: secondaryType, 
-                power: 1.8, 
-                energyGain: 0, 
-                cost: 50 
-            },
-            { 
-                name: 'Habilidad Defensiva', 
-                type: 'Normal', 
-                power: 0, 
-                shield: 0.3, 
-                energyGain: 15, 
-                cost: 30 
-            }
+            { name: `Ataque ${randomMove1Type}`, type: randomMove1Type, power: 1.0, energyGain: 25, cost: 0 },
+            { name: `Ataque ${randomMove2Type}`, type: randomMove2Type, power: 1.8, energyGain: 0, cost: 50 },
+            { name: 'Habilidad Defensiva', type: 'Normal', power: 0, shield: 0.3, energyGain: 15, cost: 30 }
         ]
     };
 }
 
-/**
- * Inicia una batalla entre el equipo del jugador y un equipo enemigo
- */
 function startBattle(playerUnits, enemyUnits, mode = 'quick', onEndCallback = null) {
     if (!playerUnits || playerUnits.length === 0) {
         alert("¡Debes tener al menos un Pokémon en tu equipo para luchar!");
@@ -165,7 +171,6 @@ function startBattle(playerUnits, enemyUnits, mode = 'quick', onEndCallback = nu
     CombatState.onBattleEndCallback = onEndCallback;
     CombatState.logHistory = [];
 
-    // Determinar quién empieza según la velocidad
     const pSpeed = CombatState.playerTeam[0].speed;
     const eSpeed = CombatState.enemyTeam[0].speed;
     CombatState.turn = pSpeed >= eSpeed ? 'player' : 'enemy';
@@ -173,7 +178,6 @@ function startBattle(playerUnits, enemyUnits, mode = 'quick', onEndCallback = nu
     renderCombatArena();
     addCombatLog(`¡Empieza la batalla en modo ${mode.toUpperCase()}!`);
     addCombatLog(`${CombatState.playerTeam[0].name} vs ${CombatState.enemyTeam[0].name}`);
-    const effMult = move.power > 0 ? getTypeEffectiveness(move.type || player.type, enemy) : 1.0;
 
     if (CombatState.turn === 'enemy') {
         setTimeout(executeEnemyTurn, 1000);
@@ -181,7 +185,7 @@ function startBattle(playerUnits, enemyUnits, mode = 'quick', onEndCallback = nu
 }
 
 // =========================================
-// LÓGICA DE TURNOS Y ATAQUES
+// LÓGICA DE ATAQUE Y CÁLCULO DE DAÑO
 // =========================================
 
 window.executePlayerMove = function(moveIndex) {
@@ -207,7 +211,6 @@ window.executePlayerMove = function(moveIndex) {
     CombatState.turn = 'animating';
     attacker.energy -= move.cost;
 
-    // Habilidad Defensiva / Curación
     if (move.power === 0) {
         const healAmount = Math.floor(attacker.maxHp * (move.shield || 0.2));
         attacker.currentHp = Math.min(attacker.maxHp, attacker.currentHp + healAmount);
@@ -219,12 +222,10 @@ window.executePlayerMove = function(moveIndex) {
         return;
     }
 
-    // Cálculo de Daño
     const damageResult = calculateDamage(attacker, defender, move);
     defender.currentHp = Math.max(0, defender.currentHp - damageResult.damage);
     attacker.energy = Math.min(attacker.maxEnergy, attacker.energy + move.energyGain);
 
-    // Animaciones
     triggerUnitAnimation('player-card', 'attack');
     triggerUnitAnimation('enemy-card', 'hit');
     showFloatingDamage('enemy-card', damageResult.damage, damageResult.isCrit, damageResult.effMessage);
@@ -236,7 +237,6 @@ window.executePlayerMove = function(moveIndex) {
 
     updateCombatUI();
 
-    // Comprobar si el enemigo cayó
     if (defender.currentHp <= 0) {
         setTimeout(handleEnemyFaint, 1000);
     } else {
@@ -250,7 +250,6 @@ function executeEnemyTurn() {
     const attacker = CombatState.enemyTeam[CombatState.activeEnemyIndex];
     const defender = CombatState.playerTeam[CombatState.activePlayerIndex];
 
-    // IA Enemiga
     let selectedMove = attacker.moves[0];
     if (attacker.energy >= 50 && attacker.moves[1]) {
         selectedMove = attacker.moves[1];
@@ -290,18 +289,12 @@ function endTurn() {
     setTimeout(executeEnemyTurn, 1000);
 }
 
-// =========================================
-// SISTEMA DE CÁLCULO DE DAÑO Y ELEMENTOS
-// =========================================
-
 function calculateDamage(attacker, defender, move) {
     const isCrit = Math.random() < 0.15;
     const critMult = isCrit ? 1.5 : 1.0;
 
     const atkType = move.type || attacker.type || 'Normal';
-    const defType = defender.type || 'Normal';
-
-    const elementMult = getTypeEffectiveness(atkType, defType);
+    const elementMult = getTypeEffectiveness(atkType, defender);
     const effInfo = getEffectivenessLabel(elementMult);
 
     if (elementMult === 0) {
@@ -316,7 +309,7 @@ function calculateDamage(attacker, defender, move) {
 }
 
 // =========================================
-// GESTIÓN DE DERROTAS Y SUSTITUCIONES
+// SUSTITUCIONES Y FIN DE COMBATE
 // =========================================
 
 function handleEnemyFaint() {
@@ -382,7 +375,7 @@ function awardRewards() {
 }
 
 // =========================================
-// RENDERIZADO E INTERFAZ GRÁFICA (UI)
+// RENDERIZADO E INTERFAZ GRÁFICA
 // =========================================
 
 function renderCombatArena() {
@@ -390,10 +383,7 @@ function renderCombatArena() {
                       document.getElementById('tab-combate') || 
                       document.getElementById('tab-combat');
                       
-    if (!container) {
-        console.error("No se encontró el contenedor para la arena de combate.");
-        return;
-    }
+    if (!container) return;
 
     const player = CombatState.playerTeam[CombatState.activePlayerIndex];
     const enemy = CombatState.enemyTeam[CombatState.activeEnemyIndex];
@@ -401,20 +391,22 @@ function renderCombatArena() {
     const playerImg = player.sprite || (player.sprites ? player.sprites.front : '') || '';
     const enemyImg = enemy.sprite || (enemy.sprites ? enemy.sprites.front : '') || '';
 
+    const playerTypeLabel = (player.types || [player.type || 'Normal']).join(' / ');
+    const enemyTypeLabel = (enemy.types || [enemy.type || 'Normal']).join(' / ');
+
     container.innerHTML = `
         <div class="combat-arena">
-            <!-- POKÉMON JUGADOR (IZQUIERDA) -->
+            <!-- POKÉMON JUGADOR -->
             <div class="combat-card player-card" id="player-card">
                 <div class="unit-info">
                     <span class="unit-name">${player.name} (Nv. ${player.level || 10})</span>
-                    <span class="unit-type ${(player.type || 'normal').toLowerCase()}">${player.type || 'Normal'}</span>
+                    <span class="unit-type ${(player.types ? player.types[0] : player.type || 'normal').toLowerCase()}">${playerTypeLabel}</span>
                 </div>
                 <div class="hp-bar-container">
                     <div class="hp-bar-fill" id="player-hp-fill" style="width: ${(player.currentHp / player.maxHp) * 100}%"></div>
                 </div>
                 <div class="hp-text" id="player-hp-text">${player.currentHp} / ${player.maxHp} HP</div>
                 
-                <!-- Barra de Energía -->
                 <div class="energy-bar-container">
                     <div class="energy-bar-fill" id="player-energy-fill" style="width: ${(player.energy / player.maxEnergy) * 100}%"></div>
                 </div>
@@ -424,14 +416,13 @@ function renderCombatArena() {
                 </div>
             </div>
 
-            <!-- VS BADGE -->
             <div class="combat-vs-badge">VS</div>
 
-            <!-- POKÉMON ENEMIGO (DERECHA) -->
+            <!-- POKÉMON ENEMIGO -->
             <div class="combat-card enemy-card" id="enemy-card">
                 <div class="unit-info">
                     <span class="unit-name">${enemy.name} (Nv. ${enemy.level || 10})</span>
-                    <span class="unit-type ${(enemy.type || 'normal').toLowerCase()}">${enemy.type || 'Normal'}</span>
+                    <span class="unit-type ${(enemy.types ? enemy.types[0] : enemy.type || 'normal').toLowerCase()}">${enemyTypeLabel}</span>
                 </div>
                 <div class="hp-bar-container">
                     <div class="hp-bar-fill" id="enemy-hp-fill" style="width: ${(enemy.currentHp / enemy.maxHp) * 100}%"></div>
@@ -444,16 +435,16 @@ function renderCombatArena() {
             </div>
         </div>
 
-        <!-- PANEL DE ACCIONES Y CONTROLES -->
+        <!-- PANEL DE ACCIONES -->
         <div class="combat-controls">
             <div class="moves-grid" id="moves-grid">
                 ${player.moves.map((move, idx) => {
-                    const effMult = move.power > 0 ? getTypeEffectiveness(move.type || player.type, enemy.type) : 1.0;
+                    const effMult = move.power > 0 ? getTypeEffectiveness(move.type, enemy) : 1.0;
                     const effLabel = move.power > 0 ? getEffectivenessLabel(effMult) : { text: '', class: '' };
 
                     return `
                         <button class="btn-move" onclick="window.executePlayerMove(${idx})" ${CombatState.turn !== 'player' || player.energy < move.cost ? 'disabled' : ''}>
-                            <span class="move-name">${move.name} (${move.type || player.type})</span>
+                            <span class="move-name">${move.name} (${move.type})</span>
                             <span class="move-cost">${move.cost > 0 ? `⚡ ${move.cost}` : 'Gratis'}</span>
                             ${effLabel.text ? `<span class="move-eff ${effLabel.class}">${effLabel.text}</span>` : ''}
                         </button>
@@ -462,7 +453,6 @@ function renderCombatArena() {
             </div>
         </div>
 
-        <!-- LOG DE COMBATE -->
         <div class="combat-log-box" id="combat-log-box"></div>
     `;
 
