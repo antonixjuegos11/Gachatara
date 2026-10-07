@@ -1,4 +1,4 @@
-// combat.js - Motor de Combate por Turnos Integrado con Habilidades y Estados Alterados
+// combat.js - Motor de Combate con Estados Traducidos y Efectos Visuales
 
 // =========================================
 // ESTADO Y CONFIGURACIÓN DEL COMBATE
@@ -14,6 +14,15 @@ const CombatState = {
     mode: 'quick', // 'quick' | 'story' | 'ranked'
     onBattleEndCallback: null,
     logHistory: []
+};
+
+// Diccionario de traducción de estados al español
+const STATUS_TRANSLATIONS = {
+    "paralyzed": "paralizado",
+    "burned": "quemado",
+    "poisoned": "envenenado",
+    "frozen": "congelado",
+    "asleep": "dormido"
 };
 
 // Tabla elemental completa en español
@@ -86,7 +95,7 @@ function getEffectivenessLabel(mult) {
 }
 
 // =========================================
-// INICIALIZACIÓN Y PREPARACIÓN (CON MOVIMIENTOS DINÁMICOS)
+// INICIALIZACIÓN Y PREPARACIÓN
 // =========================================
 
 function prepareCombatUnit(pkmn, level = 10) {
@@ -112,7 +121,6 @@ function prepareCombatUnit(pkmn, level = 10) {
         base = { hp: 45, attack: 49, defense: 49, spAtk: 65, spDef: 65, speed: 45 };
     }
 
-    // FÓRMULA OFICIAL DE STATS SEGÚN EL NIVEL
     const maxHp = Math.floor(((2 * base.hp) * level) / 100) + level + 10;
     const attack = Math.floor(((2 * base.attack) * level) / 100) + 5;
     const defense = Math.floor(((2 * base.defense) * level) / 100) + 5;
@@ -123,7 +131,6 @@ function prepareCombatUnit(pkmn, level = 10) {
     const primaryType = pkmnTypes[0];
     const secondaryType = pkmnTypes[1] || primaryType;
 
-    // Diccionario de efectos y estados secundarios según el arquetipo elemental
     const typeEffects = {
         "Fuego": { status: "burned", chance: 0.25 },
         "Eléctrico": { status: "paralyzed", chance: 0.3 },
@@ -178,7 +185,7 @@ function prepareCombatUnit(pkmn, level = 10) {
         types: pkmnTypes,
         type: primaryType,
         ability,
-        status: null, // Estado alterado actual (paralyzed, burned, poisoned, etc.)
+        status: null,
         moves: dynamicMoves
     };
 }
@@ -207,7 +214,6 @@ function startBattle(playerUnits, enemyUnits, mode = 'quick', onEndCallback = nu
     addCombatLog(`¡Empieza la batalla en modo ${mode.toUpperCase()}!`);
     addCombatLog(`${pActive.name} vs ${eActive.name}`);
 
-    // Disparar habilidades al entrar al campo (onEnter)
     if (typeof triggerAbility === 'function') {
         const pEnterMsg = triggerAbility('onEnter', pActive, eActive, null, 0, CombatState);
         if (pEnterMsg) addCombatLog(pEnterMsg);
@@ -228,20 +234,20 @@ function startBattle(playerUnits, enemyUnits, mode = 'quick', onEndCallback = nu
 function processStatusBeforeTurn(unit) {
     if (!unit || !unit.status) return false;
 
-    // Daño por Veneno o Quemadura al inicio del turno
+    const statusNameEs = STATUS_TRANSLATIONS[unit.status] || unit.status;
+
     if (unit.status === "poisoned" || unit.status === "burned") {
         const statusDamage = Math.max(1, Math.floor(unit.maxHp * 0.1));
         unit.currentHp = Math.max(0, unit.currentHp - statusDamage);
-        addCombatLog(`⚠️ ${unit.name} sufre por su estado (${unit.status}) y pierde ${statusDamage} HP.`);
+        addCombatLog(`⚠️ ${unit.name} sufre por su estado (${statusNameEs}) y pierde ${statusDamage} HP.`);
     }
 
-    // Parálisis: 25% de probabilidad de no poder moverse
     if (unit.status === "paralyzed" && Math.random() < 0.25) {
         addCombatLog(`⚡ ¡${unit.name} está tan paralizado que no puede moverse!`);
-        return true; // Turno bloqueado
+        return true;
     }
 
-    return false; // Turno libre
+    return false;
 }
 
 // =========================================
@@ -260,7 +266,6 @@ window.executePlayerMove = function(moveIndex) {
 
     if (!attacker || !defender) return;
 
-    // Comprobar efectos de estado antes de actuar
     if (processStatusBeforeTurn(attacker)) {
         updateCombatUI();
         if (attacker.currentHp <= 0) {
@@ -297,10 +302,10 @@ window.executePlayerMove = function(moveIndex) {
     defender.currentHp = Math.max(0, defender.currentHp - damageResult.damage);
     attacker.energy = Math.min(attacker.maxEnergy, attacker.energy + move.energyGain);
 
-    // Aplicar estado alterado secundario si el movimiento lo permite y acierta la probabilidad
     if (move.statusEffect && !defender.status && Math.random() < (move.statusChance || 0.2)) {
         defender.status = move.statusEffect;
-        addCombatLog(`🦠 ¡${defender.name} ha sido afectado por ${move.statusEffect}!`);
+        const statusNameEs = STATUS_TRANSLATIONS[move.statusEffect] || move.statusEffect;
+        addCombatLog(`🦠 ¡${defender.name} ha quedado ${statusNameEs}!`);
     }
 
     triggerUnitAnimation('player-card', 'attack');
@@ -353,7 +358,8 @@ function executeEnemyTurn() {
 
     if (selectedMove.statusEffect && !defender.status && Math.random() < (selectedMove.statusChance || 0.2)) {
         defender.status = selectedMove.statusEffect;
-        addCombatLog(`🦠 ¡Tu ${defender.name} ha sido afectado por ${selectedMove.statusEffect}!`);
+        const statusNameEs = STATUS_TRANSLATIONS[selectedMove.statusEffect] || selectedMove.statusEffect;
+        addCombatLog(`🦠 ¡Tu ${defender.name} ha quedado ${statusNameEs}!`);
     }
 
     triggerUnitAnimation('enemy-card', 'attack');
@@ -380,7 +386,6 @@ function executeEnemyTurn() {
 function endTurn() {
     if (CombatState.isBattleOver) return;
 
-    // Habilidades de fin de turno (onTurnEnd)
     if (typeof triggerAbility === 'function') {
         const pTurnMsg = triggerAbility('onTurnEnd', CombatState.playerTeam[CombatState.activePlayerIndex], CombatState.enemyTeam[CombatState.activeEnemyIndex]);
         if (pTurnMsg) addCombatLog(pTurnMsg);
@@ -394,7 +399,6 @@ function endTurn() {
     setTimeout(executeEnemyTurn, 1000);
 }
 
-// FÓRMULA OFICIAL DE DAÑO DE POKÉMON + HABILIDADES + QUEMADURA
 function calculateDamage(attacker, defender, move) {
     const isCrit = Math.random() < 0.0625;
     const critMult = isCrit ? 1.5 : 1.0;
@@ -410,21 +414,17 @@ function calculateDamage(attacker, defender, move) {
     let atkStat = move.isSpecial ? attacker.spAtk : attacker.attack;
     const defStat = move.isSpecial ? defender.spDef : defender.defense;
 
-    // Si el atacante está quemado, su daño físico se reduce a la mitad
     if (attacker.status === "burned" && !move.isSpecial) {
         atkStat = Math.floor(atkStat * 0.5);
     }
 
     const hasSTAB = attacker.types && attacker.types.includes(atkType) ? 1.5 : 1.0;
-
     const levelFactor = ((2 * attacker.level) / 5) + 2;
     const baseDamage = ((levelFactor * move.power * (atkStat / defStat)) / 50) + 2;
-
     const variation = (Math.floor(Math.random() * 16) + 85) / 100;
 
     let finalDamage = Math.max(1, Math.floor(baseDamage * critMult * elementMult * hasSTAB * variation));
 
-    // Evaluar habilidades de daño (onDamage / onReceiveDamage)
     if (typeof triggerAbility === 'function') {
         const atkAbility = triggerAbility('onDamage', attacker, defender, move, finalDamage, CombatState);
         if (atkAbility) {
@@ -523,8 +523,20 @@ function awardRewards() {
 }
 
 // =========================================
-// RENDERIZADO E INTERFAZ GRÁFICA
+// RENDERIZADO E INTERFAZ GRÁFICA (CON FILTROS DE ESTADO)
 // =========================================
+
+function getStatusFilterStyle(status) {
+    if (!status) return '';
+    // Aplica un tinte de color mediante filtros CSS al sprite según el estado
+    switch (status) {
+        case 'paralyzed': return 'filter: drop-shadow(0 0 8px yellow) sepia(1) saturate(5) hue-rotate(10deg);';
+        case 'burned': return 'filter: drop-shadow(0 0 8px orange) sepia(1) saturate(4) hue-rotate(-30deg);';
+        case 'poisoned': return 'filter: drop-shadow(0 0 8px purple) sepia(1) saturate(3) hue-rotate(220deg);';
+        case 'frozen': return 'filter: drop-shadow(0 0 8px cyan) sepia(1) saturate(3) hue-rotate(140deg);';
+        default: return '';
+    }
+}
 
 function renderCombatArena() {
     const container = document.getElementById('combat-arena-container') || 
@@ -542,12 +554,18 @@ function renderCombatArena() {
     const playerTypeLabel = (player.types || [player.type || 'Normal']).join(' / ');
     const enemyTypeLabel = (enemy.types || [enemy.type || 'Normal']).join(' / ');
 
+    const playerStatusText = player.status ? ` [${STATUS_TRANSLATIONS[player.status] || player.status}]` : '';
+    const enemyStatusText = enemy.status ? ` [${STATUS_TRANSLATIONS[enemy.status] || enemy.status}]` : '';
+
+    const playerFilter = getStatusFilterStyle(player.status);
+    const enemyFilter = getStatusFilterStyle(enemy.status);
+
     container.innerHTML = `
         <div class="combat-arena">
             <!-- POKÉMON JUGADOR -->
             <div class="combat-card player-card" id="player-card">
                 <div class="unit-info">
-                    <span class="unit-name">${player.name} (Nv. ${player.level || 10})</span>
+                    <span class="unit-name">${player.name}${playerStatusText} (Nv. ${player.level || 10})</span>
                     <span class="unit-type ${(player.types ? player.types[0] : player.type || 'normal').toLowerCase()}">${playerTypeLabel}</span>
                 </div>
                 <div class="hp-bar-container">
@@ -560,7 +578,7 @@ function renderCombatArena() {
                 </div>
 
                 <div class="sprite-box">
-                    <img id="player-sprite" src="${playerImg}" alt="${player.name}">
+                    <img id="player-sprite" src="${playerImg}" alt="${player.name}" style="${playerFilter}">
                 </div>
             </div>
 
@@ -569,7 +587,7 @@ function renderCombatArena() {
             <!-- POKÉMON ENEMIGO -->
             <div class="combat-card enemy-card" id="enemy-card">
                 <div class="unit-info">
-                    <span class="unit-name">${enemy.name} (Nv. ${enemy.level || 10})</span>
+                    <span class="unit-name">${enemy.name}${enemyStatusText} (Nv. ${enemy.level || 10})</span>
                     <span class="unit-type ${(enemy.types ? enemy.types[0] : enemy.type || 'normal').toLowerCase()}">${enemyTypeLabel}</span>
                 </div>
                 <div class="hp-bar-container">
@@ -578,7 +596,7 @@ function renderCombatArena() {
                 <div class="hp-text" id="enemy-hp-text">${enemy.currentHp} / ${enemy.maxHp} HP</div>
                 
                 <div class="sprite-box">
-                    <img id="enemy-sprite" src="${enemyImg}" alt="${enemy.name}">
+                    <img id="enemy-sprite" src="${enemyImg}" alt="${enemy.name}" style="${enemyFilter}">
                 </div>
             </div>
         </div>
@@ -628,6 +646,23 @@ function updateCombatUI() {
 
     const pEnergyFill = document.getElementById('player-energy-fill');
     if (pEnergyFill) pEnergyFill.style.width = `${(player.energy / player.maxEnergy) * 100}%`;
+
+    // Actualizar nombres y filtros visuales si cambian de estado en tiempo real
+    const playerCardName = document.querySelector('.player-card .unit-name');
+    const enemyCardName = document.querySelector('.enemy-card .unit-name');
+    const playerImgElem = document.getElementById('player-sprite');
+    const enemyImgElem = document.getElementById('enemy-sprite');
+
+    if (playerCardName) {
+        const statusEs = player.status ? ` [${STATUS_TRANSLATIONS[player.status] || player.status}]` : '';
+        playerCardName.innerText = `${player.name}${statusEs} (Nv. ${player.level || 10})`;
+    }
+    if (enemyCardName) {
+        const statusEs = enemy.status ? ` [${STATUS_TRANSLATIONS[enemy.status] || enemy.status}]` : '';
+        enemyCardName.innerText = `${enemy.name}${statusEs} (Nv. ${enemy.level || 10})`;
+    }
+    if (playerImgElem) playerImgElem.style = getStatusFilterStyle(player.status);
+    if (enemyImgElem) enemyImgElem.style = getStatusFilterStyle(enemy.status);
 
     const moveButtons = document.querySelectorAll('.btn-move');
     moveButtons.forEach((btn, idx) => {
