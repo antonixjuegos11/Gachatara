@@ -87,6 +87,23 @@
         <div class="logo-title">
             <span class="game-tag">GACHATARA</span>
         </div>
+
+        <!-- CONTADOR DE MONEDAS -->
+        <div class="currencies-bar">
+            <div class="currency-item" title="Tickets de Invocación">
+                <span class="currency-icon">🎟️</span>
+                <span id="currency-tickets" class="currency-amount">0</span>
+            </div>
+            <div class="currency-item" title="Esquirlas Coloridas">
+                <span class="currency-icon">💎</span>
+                <span id="currency-shards" class="currency-amount">0</span>
+            </div>
+            <div class="currency-item" title="Monedas Tara">
+                <span class="currency-icon">🪙</span>
+                <span id="currency-coins" class="currency-amount">0</span>
+            </div>
+        </div>
+
         <nav class="nav-bar">
             <a href="index.html" class="nav-tab nav-link">Volver al Juego</a>
             <span class="nav-tab active">Ajustes</span>
@@ -100,7 +117,7 @@
         <!-- Sección: Gestión de Datos -->
         <section class="settings-section">
             <h3>Reiniciar Datos Guardados</h3>
-            <p>Borra permanentemente todo tu inventario de Pokémon capturados y tu progreso en la Pokédex. Esta acción no se puede deshacer.</p>
+            <p>Borra permanentemente todo tu inventario de Pokémon capturados, tu Pokédex y el saldo de monedas. Esta acción no se puede deshacer.</p>
             <button class="btn-danger" onclick="resetGameData()">Borrar Datos Guardados</button>
         </section>
 
@@ -114,12 +131,13 @@
     <script>
         // Función para borrar los datos guardados en LocalStorage
         function resetGameData() {
-            const confirmReset = confirm("¿Estás seguro de que deseas borrar todos tus Pokémon capturados y reiniciar la Pokédex? Esta acción es irreversible.");
+            const confirmReset = confirm("¿Estás seguro de que deseas borrar todos tus Pokémon capturados, tu Pokédex y tus monedas? Esta acción es irreversible.");
             
             if (confirmReset) {
                 // Claves guardadas en localStorage
                 localStorage.removeItem('pokemon_pokedex_collection');
                 localStorage.removeItem('pokemon_user_inventory');
+                localStorage.removeItem('pokemon_user_currencies');
                 
                 alert("Los datos han sido borrados con éxito.");
                 // Redirigir al inicio del juego

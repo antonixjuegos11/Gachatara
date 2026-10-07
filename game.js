@@ -1,4 +1,4 @@
-// game.js - Fondo de partículas, Pokédex, Inventario y Navegación Corregida
+// game.js - Fondo de partículas, Pokédex, Inventario, Monedas y Navegación
 
 // =========================================
 // FONDO ANIMADO DE PARTÍCULAS
@@ -41,6 +41,41 @@ if (canvas && ctx) {
         requestAnimationFrame(animate);
     }
     animate();
+}
+
+// =========================================
+// GESTIÓN DE MONEDAS Y RECURSOS
+// =========================================
+
+const CURRENCIES_KEY = 'pokemon_user_currencies';
+
+// Obtener las monedas guardadas o valores por defecto
+function getCurrencies() {
+    const defaultCurrencies = { tickets: 10, shards: 100, coins: 500 };
+    const saved = localStorage.getItem(CURRENCIES_KEY);
+    if (!saved) {
+        localStorage.setItem(CURRENCIES_KEY, JSON.stringify(defaultCurrencies));
+        return defaultCurrencies;
+    }
+    return JSON.parse(saved);
+}
+
+function saveCurrencies(currencies) {
+    localStorage.setItem(CURRENCIES_KEY, JSON.stringify(currencies));
+    updateCurrenciesUI();
+}
+
+// Actualizar los textos del contador en el header
+function updateCurrenciesUI() {
+    const currencies = getCurrencies();
+    
+    const ticketsElem = document.getElementById('currency-tickets');
+    const shardsElem = document.getElementById('currency-shards');
+    const coinsElem = document.getElementById('currency-coins');
+
+    if (ticketsElem) ticketsElem.innerText = currencies.tickets ?? 0;
+    if (shardsElem) shardsElem.innerText = currencies.shards ?? 0;
+    if (coinsElem) coinsElem.innerText = currencies.coins ?? 0;
 }
 
 // =========================================
@@ -287,7 +322,14 @@ function pullGacha(amount) {
     });
 }
 
-// Inicializar vistas al cargar la página
+// Inicializar vistas e interfaz al cargar la página
 document.addEventListener('DOMContentLoaded', () => {
+    updateCurrenciesUI();
+    renderInventory();
+});
+
+// Escuchar cambios de LocalStorage (por si se reinician datos en Ajustes)
+window.addEventListener('storage', () => {
+    updateCurrenciesUI();
     renderInventory();
 });
