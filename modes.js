@@ -1,34 +1,55 @@
-// modes.js - Modos de Combate (Partida Rápida, Historia, Ranked)
+// modes.js - Modos de Combate
 
-// Genera un Pokémon rival aleatorio desde la Base de Datos
 function getRandomEnemy(level = 10) {
     const allPkmn = typeof getAllPokemonFromDB === 'function' ? getAllPokemonFromDB() : [];
-    if (allPkmn.length === 0) return null;
+    
+    if (allPkmn.length > 0) {
+        const randomPick = allPkmn[Math.floor(Math.random() * allPkmn.length)];
+        return { ...randomPick, level };
+    }
 
-    const randomPick = allPkmn[Math.floor(Math.random() * allPkmn.length)];
+    // Enemigo por defecto si la base de datos no está cargada aún
     return {
-        ...randomPick,
-        level: level
+        id: 133,
+        name: "Eevee",
+        type: "Normal",
+        hp: 60,
+        attack: 55,
+        defense: 50,
+        speed: 55,
+        sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/133.png",
+        level
     };
 }
 
-// Iniciar Partida Rápida (Versus IA Aleatoria)
 function startQuickBattle() {
-    // Tomar los primeros Pokémon del inventario del usuario
-    const playerTeam = userInventory.slice(0, 1); // 1v1 para prueba rápida
+    let playerUnit = null;
 
-    if (playerTeam.length === 0) {
-        alert("¡Necesitas conseguir al menos 1 Pokémon en el Gacha para poder luchar!");
-        return;
+    // 1. Intentar tomar el primer Pokémon del inventario del jugador
+    if (typeof userInventory !== 'undefined' && userInventory.length > 0) {
+        playerUnit = userInventory[0];
+    } else {
+        // Pokémon de prueba si el inventario está vacío
+        playerUnit = {
+            id: 25,
+            name: "Pikachu",
+            type: "Eléctrico",
+            hp: 70,
+            attack: 60,
+            defense: 40,
+            speed: 90,
+            sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/25.png",
+            level: 10
+        };
     }
 
-    const enemy = getRandomEnemy(playerTeam[0].level || 10);
-    if (!enemy) {
-        alert("No se pudieron cargar los datos del rival.");
-        return;
-    }
+    const enemyUnit = getRandomEnemy(playerUnit.level || 10);
 
-    startBattle(playerTeam, [enemy], 'quick', (hasWon) => {
-        console.log(`Combate rápido finalizado. ¿Victoria?: ${hasWon}`);
-    });
+    if (typeof startBattle === 'function') {
+        startBattle([playerUnit], [enemyUnit], 'quick', (hasWon) => {
+            console.log(`Combate terminado. Resultado: ${hasWon ? 'Victoria' : 'Derrota'}`);
+        });
+    } else {
+        console.error("La función startBattle no está disponible. Revisa que combat.js esté cargado correctamente.");
+    }
 }
