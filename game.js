@@ -97,7 +97,6 @@ function getDupeCostForNextStar(currentStars) {
 }
 
 function getStatMultiplierForStars(stars) {
-    // Cada estrella otorga un +10% acumulativo a las estadísticas
     return 1 + ((stars || 0) * 0.10);
 }
 
@@ -106,23 +105,38 @@ function saveStorage() {
     localStorage.setItem(INVENTORY_KEY, JSON.stringify(userInventory));
 }
 
-// Añadir Pokémon al inventario del usuario (agrupando por ID y gestionando dupes)
+// Añadir Pokémon al inventario (compatible con contador de dupes previo y nuevo)
 function addPokemonToInventory(pkmn) {
     if (!pkmn || !pkmn.id) return;
 
     playerCollection.add(Number(pkmn.id));
 
-    // Comprobar si ya existe en el inventario general por ID
-    const existing = userInventory.find(item => Number(item.id) === Number(pkmn.id));
+    // Buscar si ya existe por ID
+    let existing = userInventory.find(item => Number(item.id) === Number(pkmn.id));
 
     if (existing) {
-        existing.count = (existing.count || 1) + 1;
+        // Soporta tanto 'count' como 'dupes' según se guardara antes
+        existing.count = (existing.count || existing.dupes || 1) + 1;
     } else {
+        // Asegurar que rescatamos bien los datos base y habilidad de la base de datos global si existe
+        let fullPkmnData = pkmn;
+        if (typeof DATABASE !== 'undefined' && (!pkmn.baseStats || !pkmn.ability)) {
+            for (const cat in DATABASE) {
+                const found = DATABASE[cat].find(p => Number(p.id) === Number(pkmn.id) || p.name.toLowerCase() === pkmn.name.toLowerCase());
+                if (found) {
+                    fullPkmnData = { ...found, ...pkmn };
+                    break;
+                }
+            }
+        }
+
         userInventory.push({
-            ...pkmn,
+            ...fullPkmnData,
             stars: 0,
             count: 1,
-            level: pkmn.level || 10
+            level: pkmn.level || 10,
+            baseStats: fullPkmnData.baseStats || { hp: 45, attack: 49, defense: 49, spAtk: 65, spDef: 65, speed: 45 },
+            ability: fullPkmnData.ability || pkmn.ability || 'Presión'
         });
     }
 
@@ -134,7 +148,7 @@ function addPokemonToInventory(pkmn) {
     }
 }
 
-// Renderizar Inventario agrupado y ordenado con soporte de clic para modal
+// Renderizar Inventario ordenado y con distintivos de estrellas y copias
 function renderInventory() {
     const container = document.getElementById('inventory-grid') || document.getElementById('team-grid');
     const counterElem = document.getElementById('total-capturados');
@@ -152,7 +166,6 @@ function renderInventory() {
         return;
     }
 
-    // Ordenar de menor a mayor por ID de Pokédex
     const sortedInventory = [...userInventory].sort((a, b) => Number(a.id) - Number(b.id));
 
     sortedInventory.forEach(pkmn => {
@@ -160,13 +173,14 @@ function renderInventory() {
         const cleanRarityClass = rawRarity.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
         pkmn.stars = pkmn.stars || 0;
+        const totalCopies = pkmn.count || pkmn.dupes || 1;
         const starsDisplay = '★'.repeat(pkmn.stars);
 
         const card = document.createElement('div');
         card.className = `pokemon-card card-pokemon ${cleanRarityClass}`;
         card.style.cursor = 'pointer';
         
-        const countBadge = pkmn.count > 1 ? `<span class="card-count-badge">x${pkmn.count}</span>` : '';
+        const countBadge = totalCopies > 1 ? `<span class="card-count-badge">x${totalCopies}</span>` : '';
 
         card.innerHTML = `
             ${countBadge}
@@ -177,7 +191,6 @@ function renderInventory() {
             <div class="card-rarity">${rawRarity.toUpperCase()}</div>
         `;
 
-        // Evento de clic directo para abrir la ventana modal de información
         card.onclick = () => openPokemonModal(pkmn.id);
         container.appendChild(card);
     });
@@ -192,7 +205,7 @@ function openPokemonModal(pokemonId) {
     if (!pkmn) return;
 
     pkmn.stars = pkmn.stars || 0;
-    pkmn.count = pkmn.count || 1;
+    const totalCopies = pkmn.count || pkmn.dupes || 1;
 
     let modal = document.getElementById('pokemon-modal');
     if (!modal) {
@@ -212,16 +225,21 @@ function openPokemonModal(pokemonId) {
     const content = document.getElementById('modal-body-content');
     const sprite = pkmn.sprite || '';
     const typeLabel = (pkmn.types || [pkmn.type || 'Normal']).join(' / ');
-    const abilityName = typeof getAbilityDisplayName === 'function' ? getAbilityDisplayName(pkmn.ability) : (pkmn.ability || 'Ninguna');
+    
+    // Resolución segura de la habilidad
+    let abilityName = pkmn.ability || 'Ninguna';
+    if (typeof getAbilityDisplayName === 'function') {
+        abilityName = getAbilityDisplayName(pkmn.ability);
+    }
 
     const nextCost = getDupeCostForNextStar(pkmn.stars);
-    // Se requiere tener al menos 1 copia base + el coste de duplicados para poder despertar
-    const canAwaken = pkmn.stars < 7 && pkmn.count > nextCost;
+    // Para despertar se gastan 'nextCost' duplicados (dejando la unidad principal intocable)
+    const canAwaken = pkmn.stars < 7 && totalCopies > nextCost;
     const starsDisplay = '★'.repeat(pkmn.stars) + '☆'.repeat(7 - pkmn.stars);
 
     // Calcular estadísticas basadas en el nivel y las estrellas
     const mult = getStatMultiplierForStars(pkmn.stars);
-    const base = pkmn.baseStats || { hp: 45, attack: 49, defense: 49, speed: 45 };
+    const base = pkmn.baseStats || { hp: 45, attack: 49, defense: 49, spAtk: 65, spDef: 65, speed: 45 };
     const level = pkmn.level || 10;
     
     const calcHp = Math.floor((Math.floor(((2 * base.hp) * level) / 100) + level + 10) * mult);
@@ -255,7 +273,7 @@ function openPokemonModal(pokemonId) {
 
         <div class="modal-awakening-section" style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: 10px; text-align: center;">
             <div class="dupes-counter" style="margin-bottom: 10px; font-size: 14px; color: #dfe4ea;">
-                📦 Copias totales: <strong>${pkmn.count}</strong> (Necesitas ${nextCost + 1} para subir estrella)
+                📦 Copias totales: <strong>${totalCopies}</strong> (Necesitas ${nextCost} duplicados adicionales)
             </div>
             ${pkmn.stars < 7 ? `
                 <button class="btn-awaken" onclick="awakenPokemon(${pkmn.id})" ${!canAwaken ? 'disabled' : ''} style="background: ${canAwaken ? '#2ed573' : '#718093'}; color: white; border: none; padding: 10px 20px; font-size: 14px; font-weight: bold; border-radius: 8px; cursor: ${canAwaken ? 'pointer' : 'not-allowed'}; width: 100%; transition: 0.2s;">
@@ -280,8 +298,12 @@ function awakenPokemon(pokemonId) {
     if (!pkmn) return;
 
     const nextCost = getDupeCostForNextStar(pkmn.stars);
-    if (pkmn.stars < 7 && pkmn.count > nextCost) {
-        pkmn.count -= nextCost; 
+    let totalCopies = pkmn.count || pkmn.dupes || 1;
+
+    if (pkmn.stars < 7 && totalCopies > nextCost) {
+        totalCopies -= nextCost; 
+        pkmn.count = totalCopies;
+        pkmn.dupes = totalCopies;
         pkmn.stars += 1;        
         
         saveStorage();
