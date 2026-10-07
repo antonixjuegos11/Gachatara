@@ -44,15 +44,27 @@ const TYPE_CHART = {
 /**
  * Obtiene el multiplicador de daño entre dos tipos
  */
-function getTypeEffectiveness(moveType, targetType) {
-    if (!moveType || !targetType) return 1.0;
-    const atk = moveType.charAt(0).toUpperCase() + moveType.slice(1).toLowerCase();
-    const def = targetType.charAt(0).toUpperCase() + targetType.slice(1).toLowerCase();
+/**
+ * Obtiene el multiplicador de daño considerando si el objetivo tiene 1 o 2 tipos
+ */
+function getTypeEffectiveness(moveType, target) {
+    if (!moveType || !target) return 1.0;
 
-    if (TYPE_CHART[atk] && TYPE_CHART[atk][def] !== undefined) {
-        return TYPE_CHART[atk][def];
-    }
-    return 1.0;
+    const atk = moveType.charAt(0).toUpperCase() + moveType.slice(1).toLowerCase();
+    
+    // Obtener lista de tipos del objetivo (array 'types' o cadena 'type')
+    const targetTypes = target.types || [target.type || 'Normal'];
+
+    let totalMult = 1.0;
+
+    targetTypes.forEach(t => {
+        const def = t.charAt(0).toUpperCase() + t.slice(1).toLowerCase();
+        if (TYPE_CHART[atk] && TYPE_CHART[atk][def] !== undefined) {
+            totalMult *= TYPE_CHART[atk][def];
+        }
+    });
+
+    return totalMult;
 }
 
 /**
@@ -80,7 +92,6 @@ function prepareCombatUnit(pkmn, level = 5) {
     const baseDef = pkmn.defense || 10;
     const baseSpd = pkmn.speed || 10;
 
-    // Multiplicador por rareza
     let rarityMult = 1.0;
     const rarity = (pkmn.rarity || 'comun').toLowerCase();
     if (rarity.includes('raro')) rarityMult = 1.25;
@@ -92,6 +103,11 @@ function prepareCombatUnit(pkmn, level = 5) {
     const defense = Math.floor((baseDef * 1.2 + 5) * (level / 10) * rarityMult);
     const speed = Math.floor((baseSpd * 1.2 + 5) * (level / 10) * rarityMult);
 
+    // Obtener array de tipos del Pokémon
+    const types = pkmn.types || [pkmn.type || 'Normal'];
+    const primaryType = types[0] || 'Normal';
+    const secondaryType = types[1] || primaryType; // Si no tiene segundo tipo, usa el primero
+
     return {
         ...pkmn,
         level,
@@ -102,11 +118,31 @@ function prepareCombatUnit(pkmn, level = 5) {
         speed,
         energy: 0,
         maxEnergy: 100,
-        type: pkmn.type || 'Normal',
+        types: types,
+        type: primaryType,
         moves: [
-            { name: 'Ataque Rápido', type: pkmn.type || 'Normal', power: 1.0, energyGain: 25, cost: 0 },
-            { name: 'Ataque Especial', type: pkmn.type || 'Fuego', power: 1.8, energyGain: 0, cost: 50 },
-            { name: 'Habilidad Defensiva', type: 'Normal', power: 0, shield: 0.3, energyGain: 15, cost: 30 }
+            { 
+                name: `Ataque ${primaryType}`, 
+                type: primaryType, 
+                power: 1.0, 
+                energyGain: 25, 
+                cost: 0 
+            },
+            { 
+                name: `Ataque ${secondaryType}`, 
+                type: secondaryType, 
+                power: 1.8, 
+                energyGain: 0, 
+                cost: 50 
+            },
+            { 
+                name: 'Habilidad Defensiva', 
+                type: 'Normal', 
+                power: 0, 
+                shield: 0.3, 
+                energyGain: 15, 
+                cost: 30 
+            }
         ]
     };
 }
@@ -137,6 +173,7 @@ function startBattle(playerUnits, enemyUnits, mode = 'quick', onEndCallback = nu
     renderCombatArena();
     addCombatLog(`¡Empieza la batalla en modo ${mode.toUpperCase()}!`);
     addCombatLog(`${CombatState.playerTeam[0].name} vs ${CombatState.enemyTeam[0].name}`);
+    const effMult = move.power > 0 ? getTypeEffectiveness(move.type || player.type, enemy) : 1.0;
 
     if (CombatState.turn === 'enemy') {
         setTimeout(executeEnemyTurn, 1000);

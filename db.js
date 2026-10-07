@@ -8,6 +8,28 @@ const DATABASE = {
     secreto: []
 };
 
+// Diccionario de traducción de tipos (Inglés -> Español)
+const TYPE_TRANSLATIONS = {
+    normal: "Normal",
+    fire: "Fuego",
+    water: "Agua",
+    grass: "Planta",
+    electric: "Eléctrico",
+    ice: "Hielo",
+    fighting: "Lucha",
+    poison: "Veneno",
+    ground: "Tierra",
+    flying: "Volador",
+    psychic: "Psíquico",
+    bug: "Bicho",
+    rock: "Roca",
+    ghost: "Fantasma",
+    dragon: "Dragón",
+    dark: "Siniestro",
+    steel: "Acero",
+    fairy: "Hada"
+};
+
 // Nombres legibles en español/formato correcto para la Dex
 const MEGA_NAMES = {
     "venusaur-mega": "Mega Venusaur",
@@ -84,9 +106,14 @@ async function initSecretMegas() {
             if (!res.ok) continue;
             const data = await res.json();
 
+            // Extraer y traducir los tipos
+            const types = data.types.map(t => TYPE_TRANSLATIONS[t.type.name] || 'Normal');
+
             DATABASE.secreto.push({
                 id: nextDexId,
                 name: displayName,
+                types: types,
+                type: types[0],
                 stage: 4,
                 rarity: "secreto",
                 sprite: data.sprites.front_default || `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${data.id}.png`
@@ -126,9 +153,19 @@ async function loadFullDatabase() {
                 const id = i + index + 1;
 
                 try {
-                    const specRes = await fetch(`https://pokeapi.co/api/v2/pokemon-species/${id}/`);
-                    if (!specRes.ok) throw new Error("Error en datos de especie");
+                    // Consultar los datos del Pokémon (para tipos) y especies (para rareza) en paralelo
+                    const [pkmnRes, specRes] = await Promise.all([
+                        fetch(`https://pokeapi.co/api/v2/pokemon/${id}/`),
+                        fetch(`https://pokeapi.co/api/v2/pokemon-species/${id}/`)
+                    ]);
+
+                    if (!specRes.ok || !pkmnRes.ok) throw new Error("Error en datos de API");
+
+                    const pkmnData = await pkmnRes.json();
                     const specData = await specRes.json();
+
+                    // Mapear los tipos
+                    const types = pkmnData.types.map(t => TYPE_TRANSLATIONS[t.type.name] || 'Normal');
 
                     let rarity = "comun";
                     const isUltraBeast = (id >= 793 && id <= 800) || (id >= 803 && id <= 806);
@@ -163,6 +200,8 @@ async function loadFullDatabase() {
                     return {
                         id: id,
                         name: formatPokemonName(pkmn.name),
+                        types: types,
+                        type: types[0],
                         stage: rarity === 'comun' ? 1 : rarity === 'raro' ? 2 : 3,
                         rarity: rarity,
                         sprite: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`
@@ -171,6 +210,8 @@ async function loadFullDatabase() {
                     return {
                         id: id,
                         name: formatPokemonName(pkmn.name),
+                        types: ["Normal"],
+                        type: "Normal",
                         stage: 1,
                         rarity: "comun",
                         sprite: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`
