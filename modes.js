@@ -8,7 +8,6 @@ function getRandomEnemy(level = 10) {
         return { ...randomPick, level };
     }
 
-    // Enemigo por defecto si la base de datos no está cargada aún
     return {
         id: 133,
         name: "Eevee",
@@ -22,9 +21,7 @@ function getRandomEnemy(level = 10) {
     };
 }
 
-// Función auxiliar para generar un equipo enemigo de N miembros
 function generateEnemyTeam(playerTeam, count) {
-    // Calcula el nivel medio del equipo del jugador (o toma el del primer Pokémon, mínimo nivel 1)
     let avgLevel = 1;
     if (playerTeam && playerTeam.length > 0) {
         const totalLevel = playerTeam.reduce((sum, p) => sum + (p.level || 1), 0);
@@ -44,44 +41,31 @@ function generateEnemyTeam(playerTeam, count) {
 function startQuickBattle() {
     let playerTeam = [];
 
-    // Intentar leer el equipo rápido de 3 desde el almacenamiento local
     const savedFastTeam = localStorage.getItem('pokemon_active_team_fast');
     if (savedFastTeam) {
-        try {
-            playerTeam = JSON.parse(savedFastTeam);
-        } catch (e) {
-            playerTeam = [];
-        }
+        try { playerTeam = JSON.parse(savedFastTeam); } catch (e) { playerTeam = []; }
     }
 
-    // Si está vacío, intentamos usar el inventario general o un fallback de prueba
     if (!playerTeam || playerTeam.length === 0) {
         if (typeof userInventory !== 'undefined' && userInventory.length > 0) {
-            playerTeam = userInventory.slice(0, 3); // Tomamos hasta 3
+            playerTeam = userInventory.slice(0, 3);
         } else {
             playerTeam = [{
-                id: 25,
-                name: "Pikachu",
-                type: "Eléctrico",
-                hp: 70,
-                attack: 60,
-                defense: 40,
-                speed: 90,
-                sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/25.png",
-                level: 10
+                id: 25, name: "Pikachu", type: "Eléctrico", hp: 70, attack: 60, defense: 40, speed: 90,
+                sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/25.png", level: 1
             }];
         }
     }
 
-    const avgLevel = playerTeam[0]?.level || 10;
-    const enemyTeam = generateEnemyTeam(playerTeam.length, avgLevel); // Mismo número de enemigos que de aliados (máx 3)
+    // Genera 3 enemigos (o tantos como tenga tu equipo rápido, máximo 3)
+    const teamSize = Math.min(3, playerTeam.length);
+    const finalPlayerTeam = playerTeam.slice(0, teamSize);
+    const enemyTeam = generateEnemyTeam(finalPlayerTeam, teamSize);
 
     if (typeof startBattle === 'function') {
-        startBattle(playerTeam, enemyTeam, 'quick', (hasWon) => {
-            console.log(`Combate Rápido terminado. Resultado: ${hasWon ? 'Victoria' : 'Derrota'}`);
+        startBattle(finalPlayerTeam, enemyTeam, 'quick', (hasWon) => {
+            if (hasWon) awardTeamExperience(finalPlayerTeam, 50); // Otorga EXP al ganar
         });
-    } else {
-        console.error("La función startBattle no está disponible.");
     }
 }
 
@@ -91,14 +75,9 @@ function startQuickBattle() {
 function startStrategyBattle() {
     let playerTeam = [];
 
-    // Intentar leer el equipo estratégico de 6 desde el almacenamiento local
     const savedStrategyTeam = localStorage.getItem('pokemon_active_team_strategy');
     if (savedStrategyTeam) {
-        try {
-            playerTeam = JSON.parse(savedStrategyTeam);
-        } catch (e) {
-            playerTeam = [];
-        }
+        try { playerTeam = JSON.parse(savedStrategyTeam); } catch (e) { playerTeam = []; }
     }
 
     if (!playerTeam || playerTeam.length === 0) {
@@ -106,14 +85,38 @@ function startStrategyBattle() {
         return;
     }
 
-    const avgLevel = playerTeam[0]?.level || 10;
-    const enemyTeam = generateEnemyTeam(playerTeam.length, avgLevel); // Genera equipo enemigo de hasta 6 Pokémon
+    const teamSize = Math.min(6, playerTeam.length);
+    const finalPlayerTeam = playerTeam.slice(0, teamSize);
+    const enemyTeam = generateEnemyTeam(finalPlayerTeam, teamSize); // Genera 6 enemigos
 
     if (typeof startBattle === 'function') {
-        startBattle(playerTeam, enemyTeam, 'strategy', (hasWon) => {
-            console.log(`Combate Estratégico terminado. Resultado: ${hasWon ? 'Victoria' : 'Derrota'}`);
+        startBattle(finalPlayerTeam, enemyTeam, 'strategy', (hasWon) => {
+            if (hasWon) awardTeamExperience(finalPlayerTeam, 100); // Otorga EXP al ganar
         });
-    } else {
-        console.error("La función startBattle no está disponible.");
+    }
+}
+// Sistema de subida de nivel (Máximo Nivel 100)
+function awardTeamExperience(winningTeam, expAmount) {
+    if (!winningTeam || winningTeam.length === 0) return;
+
+    winningTeam.forEach(pkmn => {
+        // Buscamos el Pokémon real dentro del inventario del usuario para actualizarlo de forma permanente
+        let inventoryPkmn = userInventory.find(item => Number(item.id) === Number(pkmn.id));
+        if (!inventoryPkmn) return;
+
+        inventoryPkmn.level = inventoryPkmn.level || 1;
+        
+        if (inventoryPkmn.level < 100) {
+            inventoryPkmn.level += 1; // Sube 1 nivel por victoria (puedes ajustar esto si prefieres una barra de EXP)
+            if (inventoryPkmn.level > 100) inventoryPkmn.level = 100;
+        }
+    });
+
+    // Guardamos los cambios en el almacenamiento local para que no se pierdan
+    if (typeof saveStorage === 'function') {
+        saveStorage();
+    }
+    if (typeof renderInventory === 'function') {
+        renderInventory();
     }
 }
