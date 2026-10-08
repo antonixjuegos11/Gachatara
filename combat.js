@@ -1,4 +1,4 @@
-// combat.js - Motor de Combate con Estados Traducidos, Efectos Visuales y Cambio de Pokémon
+// combat.js - Motor de Combate con Estados Traducidos y Efectos Visuales
 
 // =========================================
 // ESTADO Y CONFIGURACIÓN DEL COMBATE
@@ -191,12 +191,37 @@ function prepareCombatUnit(pkmn, level = 10) {
 }
 
 function startBattle(playerUnits, enemyUnits, mode = 'quick', onEndCallback = null) {
-    if (!playerUnits || playerUnits.length === 0) {
-        alert("¡Debes tener al menos un Pokémon en tu equipo para luchar!");
-        return;
+    // Lectura robusta de los equipos activos de localStorage si llegan vacíos o con 1 solo elemento
+    let resolvedTeam = playerUnits;
+    if (!resolvedTeam || resolvedTeam.length <= 1) {
+        const activeStrategyKey = 'pokemon_active_team_strategy';
+        const activeFastKey = 'pokemon_active_team_fast';
+        
+        let savedTeam = [];
+        try {
+            if (mode === 'strategy') {
+                savedTeam = JSON.parse(localStorage.getItem(activeStrategyKey) || '[]');
+            } else {
+                savedTeam = JSON.parse(localStorage.getItem(activeFastKey) || '[]');
+            }
+            if (savedTeam.length === 0) {
+                // Si el específico está vacío, probamos el general de inventario o la otra modalidad
+                savedTeam = JSON.parse(localStorage.getItem(activeFastKey) || localStorage.getItem(activeStrategyKey) || '[]');
+            }
+        } catch(e) {
+            savedTeam = [];
+        }
+
+        if (savedTeam.length > 0) {
+            resolvedTeam = savedTeam;
+        }
     }
 
-    CombatState.playerTeam = playerUnits.map(p => prepareCombatUnit(p, p.level || 10));
+    if (!resolvedTeam || resolvedTeam.length === 0) {
+        resolvedTeam = playerUnits;
+    }
+
+    CombatState.playerTeam = resolvedTeam.map(p => prepareCombatUnit(p, p.level || 10));
     CombatState.enemyTeam = enemyUnits.map(p => prepareCombatUnit(p, p.level || 10));
     CombatState.activePlayerIndex = 0;
     CombatState.activeEnemyIndex = 0;
@@ -239,7 +264,7 @@ function processStatusBeforeTurn(unit) {
     if (unit.status === "poisoned" || unit.status === "burned") {
         const statusDamage = Math.max(1, Math.floor(unit.maxHp * 0.1));
         unit.currentHp = Math.max(0, unit.currentHp - statusDamage);
-        addCombatLog(`⚠️ ${unit.name} sufre por su estado (${statusNameEs}) and pierde ${statusDamage} HP.`);
+        addCombatLog(`⚠️ ${unit.name} sufre por su estado (${statusNameEs}) y pierde ${statusDamage} HP.`);
     }
 
     if (unit.status === "paralyzed" && Math.random() < 0.25) {
@@ -331,6 +356,8 @@ function executeEnemyTurn() {
 
     const attacker = CombatState.enemyTeam[CombatState.activeEnemyIndex];
     const defender = CombatState.playerTeam[CombatState.activePlayerIndex];
+
+    if (!attacker || !defender) return;
 
     if (processStatusBeforeTurn(attacker)) {
         updateCombatUI();
@@ -443,18 +470,17 @@ function calculateDamage(attacker, defender, move) {
 }
 
 // =========================================
-// CAMBIO MANUAL DE POKÉMON EN COMBATE
+// PANEL LATERAL DE CAMBIO DE POKÉMON
 // =========================================
 
 window.openTeamSwitchModal = function() {
     if (CombatState.isBattleOver || CombatState.turn !== 'player') return;
 
-    // Crear un modal flotante sencillo para elegir el Pokémon a cambiar
     let modal = document.getElementById('team-switch-modal');
     if (!modal) {
         modal = document.createElement('div');
         modal.id = 'team-switch-modal';
-        modal.className = 'combat-modal-overlay';
+        modal.className = 'combat-side-drawer';
         document.body.appendChild(modal);
     }
 
@@ -464,30 +490,31 @@ window.openTeamSwitchModal = function() {
         let statusBadge = pkmn.status ? ` [${STATUS_TRANSLATIONS[pkmn.status] || pkmn.status}]` : '';
 
         return `
-            <div class="switch-slot ${isCurrent ? 'current' : ''} ${isFainted ? 'fainted' : ''}" 
+            <div class="side-drawer-slot ${isCurrent ? 'current' : ''} ${isFainted ? 'fainted' : ''}" 
                  onclick="${!isCurrent && !isFainted ? `window.executeTeamSwitch(${idx})` : ''}">
-                <img src="${pkmn.sprite || (pkmn.sprites ? pkmn.sprites.front : '')}" width="50" height="50" alt="${pkmn.name}">
-                <div class="switch-slot-info">
-                    <strong>${pkmn.name}${statusBadge}</strong> (Nv. ${pkmn.level || 10})<br>
-                    <span>HP: ${pkmn.currentHp} / ${pkmn.maxHp}</span>
+                <img src="${pkmn.sprite || (pkmn.sprites ? pkmn.sprites.front : '')}" width="40" height="40" alt="${pkmn.name}">
+                <div class="side-slot-info">
+                    <strong>${pkmn.name}${statusBadge}</strong><br>
+                    <small>Nv. ${pkmn.level || 10} | HP: ${pkmn.currentHp}/${pkmn.maxHp}</small>
                 </div>
-                ${isCurrent ? '<span class="badge-current">En combate</span>' : ''}
-                ${isFainted ? '<span class="badge-fainted">Debilitado</span>' : ''}
+                ${isCurrent ? '<span class="badge-tag active">En combate</span>' : ''}
+                ${isFainted ? '<span class="badge-tag fainted">K.O.</span>' : ''}
             </div>
         `;
     }).join('');
 
     modal.innerHTML = `
-        <div class="combat-modal-content">
-            <h3>🔄 Cambiar Pokémon</h3>
-            <p>Selecciona el Pokémon que deseas enviar a la batalla:</p>
-            <div class="switch-list">
-                ${listHtml}
-            </div>
-            <button class="btn-close-modal" onclick="document.getElementById('team-switch-modal').style.display='none'">Cancelar</button>
+        <div class="side-drawer-header">
+            <h4>🔄 Cambiar Pokémon</h4>
+            <button class="btn-close-drawer" onclick="document.getElementById('team-switch-modal').style.display='none'">✕</button>
         </div>
+        <div class="side-drawer-list">
+            <p style="font-size:11px; color:#aaa; margin-bottom:8px;">Selecciona el Pokémon que deseas enviar a la batalla:</p>
+            ${listHtml}
+        </div>
+        <button class="btn-cancel-drawer" onclick="document.getElementById('team-switch-modal').style.display='none'">Cancelar</button>
     `;
-    modal.style.display = 'flex';
+    modal.style.display = 'block';
 };
 
 window.executeTeamSwitch = function(newIndex) {
@@ -509,7 +536,6 @@ window.executeTeamSwitch = function(newIndex) {
 
     renderCombatArena();
 
-    // Cambiar de Pokémon consume el turno del jugador, por lo que pasa al rival
     CombatState.turn = 'enemy';
     updateCombatUI();
     setTimeout(executeEnemyTurn, 1000);
@@ -596,7 +622,7 @@ function awardRewards() {
 }
 
 // =========================================
-// RENDERIZADO E INTERFAZ GRÁFICA (CON FILTROS DE ESTADO Y BOTÓN DE CAMBIO)
+// RENDERIZADO E INTERFAZ GRÁFICA (CON FILTROS DE ESTADO)
 // =========================================
 
 function getStatusFilterStyle(status) {
@@ -673,7 +699,7 @@ function renderCombatArena() {
             </div>
         </div>
 
-        <!-- PANEL DE ACCIONES Y CAMBIO -->
+        <!-- PANEL DE ACCIONES -->
         <div class="combat-controls">
             <div class="moves-grid" id="moves-grid">
                 ${player.moves.map((move, idx) => {
@@ -688,12 +714,11 @@ function renderCombatArena() {
                         </button>
                     `;
                 }).join('')}
-            </div>
-            
-            <!-- NUEVO BOTÓN DE CAMBIO DE POKÉMON -->
-            <div class="combat-secondary-actions" style="margin-top: 10px; text-align: center;">
-                <button class="btn-switch-team" onclick="window.openTeamSwitchModal()" ${CombatState.turn !== 'player' ? 'disabled' : ''}>
-                    🔄 Cambiar Pokémon
+
+                <!-- Botón de cambio integrado con el mismo formato -->
+                <button class="btn-move btn-switch-action" onclick="window.openTeamSwitchModal()" ${CombatState.turn !== 'player' ? 'disabled' : ''}>
+                    <span class="move-name">🔄 Cambiar Pokémon</span>
+                    <span class="move-cost">Equipo</span>
                 </button>
             </div>
         </div>
@@ -742,7 +767,7 @@ function updateCombatUI() {
     if (playerImgElem) playerImgElem.style = getStatusFilterStyle(player.status);
     if (enemyImgElem) enemyImgElem.style = getStatusFilterStyle(enemy.status);
 
-    const moveButtons = document.querySelectorAll('.btn-move');
+    const moveButtons = document.querySelectorAll('.btn-move:not(.btn-switch-action)');
     moveButtons.forEach((btn, idx) => {
         const move = player.moves[idx];
         if (move) {
@@ -750,7 +775,7 @@ function updateCombatUI() {
         }
     });
 
-    const switchButton = document.querySelector('.btn-switch-team');
+    const switchButton = document.querySelector('.btn-switch-action');
     if (switchButton) {
         switchButton.disabled = CombatState.turn !== 'player' || CombatState.isBattleOver;
     }
