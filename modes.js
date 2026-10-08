@@ -1,4 +1,4 @@
-// modes.js - Modos de Combate
+// modes.js - Modos de Combate (3v3 Rápido y 6v6 Estratégico)
 
 function getRandomEnemy(level = 10) {
     const allPkmn = typeof getAllPokemonFromDB === 'function' ? getAllPokemonFromDB() : [];
@@ -22,34 +22,91 @@ function getRandomEnemy(level = 10) {
     };
 }
 
-function startQuickBattle() {
-    let playerUnit = null;
+// Función auxiliar para generar un equipo enemigo de N miembros
+function generateEnemyTeam(count, level = 10) {
+    let team = [];
+    for (let i = 0; i < count; i++) {
+        team.push(getRandomEnemy(level));
+    }
+    return team;
+}
 
-    // 1. Intentar tomar el primer Pokémon del inventario del jugador
-    if (typeof userInventory !== 'undefined' && userInventory.length > 0) {
-        playerUnit = userInventory[0];
-    } else {
-        // Pokémon de prueba si el inventario está vacío
-        playerUnit = {
-            id: 25,
-            name: "Pikachu",
-            type: "Eléctrico",
-            hp: 70,
-            attack: 60,
-            defense: 40,
-            speed: 90,
-            sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/25.png",
-            level: 10
-        };
+// -----------------------------------------
+// MODO RÁPIDO (3v3)
+// -----------------------------------------
+function startQuickBattle() {
+    let playerTeam = [];
+
+    // Intentar leer el equipo rápido de 3 desde el almacenamiento local
+    const savedFastTeam = localStorage.getItem('pokemon_active_team_fast');
+    if (savedFastTeam) {
+        try {
+            playerTeam = JSON.parse(savedFastTeam);
+        } catch (e) {
+            playerTeam = [];
+        }
     }
 
-    const enemyUnit = getRandomEnemy(playerUnit.level || 10);
+    // Si está vacío, intentamos usar el inventario general o un fallback de prueba
+    if (!playerTeam || playerTeam.length === 0) {
+        if (typeof userInventory !== 'undefined' && userInventory.length > 0) {
+            playerTeam = userInventory.slice(0, 3); // Tomamos hasta 3
+        } else {
+            playerTeam = [{
+                id: 25,
+                name: "Pikachu",
+                type: "Eléctrico",
+                hp: 70,
+                attack: 60,
+                defense: 40,
+                speed: 90,
+                sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/25.png",
+                level: 10
+            }];
+        }
+    }
+
+    const avgLevel = playerTeam[0]?.level || 10;
+    const enemyTeam = generateEnemyTeam(playerTeam.length, avgLevel); // Mismo número de enemigos que de aliados (máx 3)
 
     if (typeof startBattle === 'function') {
-        startBattle([playerUnit], [enemyUnit], 'quick', (hasWon) => {
-            console.log(`Combate terminado. Resultado: ${hasWon ? 'Victoria' : 'Derrota'}`);
+        startBattle(playerTeam, enemyTeam, 'quick', (hasWon) => {
+            console.log(`Combate Rápido terminado. Resultado: ${hasWon ? 'Victoria' : 'Derrota'}`);
         });
     } else {
-        console.error("La función startBattle no está disponible. Revisa que combat.js esté cargado correctamente.");
+        console.error("La función startBattle no está disponible.");
+    }
+}
+
+// -----------------------------------------
+// MODO ESTRATÉGICO (6v6)
+// -----------------------------------------
+function startStrategyBattle() {
+    let playerTeam = [];
+
+    // Intentar leer el equipo estratégico de 6 desde el almacenamiento local
+    const savedStrategyTeam = localStorage.getItem('pokemon_active_team_strategy');
+    if (savedStrategyTeam) {
+        try {
+            playerTeam = JSON.parse(savedStrategyTeam);
+        } catch (e) {
+            playerTeam = [];
+        }
+    }
+
+    if (!playerTeam || playerTeam.length === 0) {
+        alert("¡No tienes un Equipo Estratégico configurado! Ve a la pestaña 'Equipo' y añade hasta 6 Pokémon.");
+        return;
+    }
+
+    const avgLevel = playerTeam[0]?.level || 10;
+    const enemyTeam = generateEnemyTeam(playerTeam.length, avgLevel); // Genera equipo enemigo de hasta 6 Pokémon
+
+    if (typeof startBattle === 'function') {
+        startBattle(playerTeam, enemyTeam, 'strategy', (hasWon) => {
+            console.log(`Combate Estratégico terminado. Resultado: ${hasWon ? 'Victoria' : 'Derrota'}`);
+        });
+    } else {
+        console.error("La función startBattle no está disponible.");
     }
 }
