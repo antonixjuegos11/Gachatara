@@ -81,7 +81,6 @@ function executeSinglePull() {
     let rarity = rollRarity();
     let result = getRandomPokemonFromGen(rarity);
 
-    // Si diera nulo por retardo de red, intenta forzar con común de DATABASE
     if (!result && DATABASE.comun && DATABASE.comun.length > 0) {
         result = DATABASE.comun[Math.floor(Math.random() * DATABASE.comun.length)];
     }
@@ -150,7 +149,6 @@ function pullGacha(amount) {
 
         const card = document.createElement('div');
         card.className = `card-pokemon ${cleanRarityClass}`;
-        // Sintaxis corregida: multiplicación (index * 0.1)
         card.style.animationDelay = `${(index * 0.1).toFixed(2)}s`;
 
         card.innerHTML = `
