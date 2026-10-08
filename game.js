@@ -211,14 +211,11 @@ function togglePokemonInTeam(pkmn) {
     const currentTeam = currentTeamMode === 'strategy' ? activeTeamStrategy : activeTeamFast;
     const maxSlots = currentTeamMode === 'strategy' ? 6 : 3;
 
-    // Comprobar si ya está en el equipo
     const existingIndex = currentTeam.findIndex(item => Number(item.id) === Number(pkmn.id));
 
     if (existingIndex !== -1) {
-        // Si ya está, lo sacamos
         currentTeam.splice(existingIndex, 1);
     } else {
-        // Si no está, comprobamos si hay hueco
         if (currentTeam.length >= maxSlots) {
             alert(`¡El equipo ${currentTeamMode === 'strategy' ? 'Estratégico' : 'Rápido'} ya está lleno (${maxSlots}/${maxSlots})!`);
             return;
@@ -402,7 +399,7 @@ function awakenPokemon(pokemonId) {
         
         saveStorage();
         openPokemonModal(pokemonId); 
-        renderInventory();       
+        renderInventory();      
     }
 }
 
