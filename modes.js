@@ -1,4 +1,4 @@
-// modes.js - Modos de Combate corregidos (Enemigos fijos: 3 para Rápido, 6 para Estratégico y Exp persistente)
+// modes.js - Modos de Combate corregidos para 3v3 y 6v6 con rivales múltiples y EXP persistente
 
 function getRandomEnemy(level = 10) {
     const allPkmn = typeof getAllPokemonFromDB === 'function' ? getAllPokemonFromDB() : [];
@@ -21,22 +21,16 @@ function getRandomEnemy(level = 10) {
     };
 }
 
-// Genera el equipo enemigo asegurando el tamaño fijo del modo (3 o 6)
-function generateEnemyTeam(playerTeam, fixedSize) {
-    let avgLevel = 1;
-    if (playerTeam && playerTeam.length > 0) {
-        const totalLevel = playerTeam.reduce((sum, p) => sum + (p.level || 1), 0);
-        avgLevel = Math.max(1, Math.floor(totalLevel / playerTeam.length));
-    }
-
+// Genera un array con exactamente la cantidad de enemigos requerida (3 o 6)
+function generateEnemyTeam(fixedSize, level = 1) {
     let team = [];
     for (let i = 0; i < fixedSize; i++) {
-        team.push(getRandomEnemy(avgLevel));
+        team.push(getRandomEnemy(level));
     }
     return team;
 }
 
-// Sincroniza el equipo del jugador directamente con el inventario para rescatar sus niveles reales
+// Obtiene el equipo del jugador sincronizado con el inventario
 function getSyncedPlayerTeam(storageKey, maxSlots) {
     let rawTeam = [];
     try {
@@ -62,7 +56,7 @@ function getSyncedPlayerTeam(storageKey, maxSlots) {
 }
 
 // -----------------------------------------
-// MODO RÁPIDO (3v3 - 3 Pokémon tuyos vs 3 del rival)
+// MODO RÁPIDO (3v3)
 // -----------------------------------------
 function startQuickBattle() {
     const finalPlayerTeam = getSyncedPlayerTeam('pokemon_active_team_fast', 3);
@@ -72,8 +66,11 @@ function startQuickBattle() {
         return;
     }
 
-    // El rival SIEMPRE tendrá 3 Pokémon en Partida Rápida
-    const enemyTeam = generateEnemyTeam(finalPlayerTeam, 3);
+    // Nivel promedio del equipo para nivelar a los 3 rivales
+    const avgLevel = Math.floor(finalPlayerTeam.reduce((sum, p) => sum + (p.level || 1), 0) / finalPlayerTeam.length);
+    
+    // Forzamos un equipo enemigo de EXACTAMENTE 3 Pokémon
+    const enemyTeam = generateEnemyTeam(3, avgLevel);
 
     if (typeof startBattle === 'function') {
         startBattle(finalPlayerTeam, enemyTeam, 'quick', (hasWon) => {
@@ -81,22 +78,27 @@ function startQuickBattle() {
                 awardTeamExperience(finalPlayerTeam);
             }
         });
+    } else {
+        console.error("La función startBattle no está disponible.");
     }
 }
 
 // -----------------------------------------
-// MODO ESTRATÉGICO (6v6 - Tus 6 Pokémon vs 6 del rival)
+// MODO ESTRATÉGICO (6v6)
 // -----------------------------------------
 function startStrategyBattle() {
     const finalPlayerTeam = getSyncedPlayerTeam('pokemon_active_team_strategy', 6);
 
     if (!finalPlayerTeam || finalPlayerTeam.length === 0) {
-        alert("¡No tienes un Equipo Estratégico configurado! Ve a la pestaña 'Equipo' y añade hasta 6 Pokémon.");
+        alert("¡No tienes un Equipo Estratégico configurado! Ve a la pestaña 'Equipo'.");
         return;
     }
 
-    // El rival SIEMPRE tendrá 6 Pokémon en Partida Estratégica
-    const enemyTeam = generateEnemyTeam(finalPlayerTeam, 6);
+    // Nivel promedio del equipo para nivelar a los 6 rivales
+    const avgLevel = Math.floor(finalPlayerTeam.reduce((sum, p) => sum + (p.level || 1), 0) / finalPlayerTeam.length);
+    
+    // Forzamos un equipo enemigo de EXACTAMENTE 6 Pokémon
+    const enemyTeam = generateEnemyTeam(6, avgLevel);
 
     if (typeof startBattle === 'function') {
         startBattle(finalPlayerTeam, enemyTeam, 'strategy', (hasWon) => {
@@ -104,10 +106,12 @@ function startStrategyBattle() {
                 awardTeamExperience(finalPlayerTeam);
             }
         });
+    } else {
+        console.error("La función startBattle no está disponible.");
     }
 }
 
-// Sistema de experiencia y subida de nivel persistente para ambos modos
+// Sistema de subida de nivel persistente
 function awardTeamExperience(winningTeam) {
     if (!winningTeam || winningTeam.length === 0 || typeof userInventory === 'undefined') return;
 
@@ -116,16 +120,17 @@ function awardTeamExperience(winningTeam) {
         if (inventoryPkmn) {
             inventoryPkmn.level = inventoryPkmn.level || 1;
             if (inventoryPkmn.level < 100) {
-                inventoryPkmn.level += 1; // Sube 1 nivel de forma permanente al ganar
+                inventoryPkmn.level += 1; // Sube de nivel de forma permanente
             }
         }
     });
 
-    // Guardar cambios en el almacenamiento local para que se reflejen en cualquier modo
     if (typeof saveStorage === 'function') {
         saveStorage();
     }
     if (typeof renderInventory === 'function') {
         renderInventory();
     }
+    
+    console.log("¡Experiencia aplicada y guardada con éxito para todo el equipo!");
 }
