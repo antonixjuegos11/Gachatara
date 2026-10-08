@@ -122,10 +122,8 @@ function prepareCombatUnit(pkmn, level = 1) {
         base = { hp: 45, attack: 49, defense: 49, spAtk: 65, spDef: 65, speed: 45 };
     }
 
-    // Multiplicador de estrellas (+10% acumulativo por estrella que ya tenías implementado)
     const starMultiplier = 1 + ((pkmn.stars || 0) * 0.10);
 
-    // Fórmula adaptada de Pokémon para escalar stats de forma equilibrada hasta el nivel 100
     const maxHp = Math.floor(((((2 * base.hp) * currentLevel) / 100) + currentLevel + 10) * starMultiplier);
     const attack = Math.floor(((((2 * base.attack) * currentLevel) / 100) + 5) * starMultiplier);
     const defense = Math.floor(((((2 * base.defense) * currentLevel) / 100) + 5) * starMultiplier);
@@ -196,7 +194,6 @@ function prepareCombatUnit(pkmn, level = 1) {
 }
 
 function startBattle(playerUnits, enemyUnits, mode = 'quick', onEndCallback = null) {
-    // Lectura robusta de los equipos activos de localStorage si llegan vacíos o con 1 solo elemento
     let resolvedTeam = playerUnits;
     if (!resolvedTeam || resolvedTeam.length <= 1) {
         const activeStrategyKey = 'pokemon_active_team_strategy';
@@ -210,7 +207,6 @@ function startBattle(playerUnits, enemyUnits, mode = 'quick', onEndCallback = nu
                 savedTeam = JSON.parse(localStorage.getItem(activeFastKey) || '[]');
             }
             if (savedTeam.length === 0) {
-                // Si el específico está vacío, probamos el general de inventario o la otra modalidad
                 savedTeam = JSON.parse(localStorage.getItem(activeFastKey) || localStorage.getItem(activeStrategyKey) || '[]');
             }
         } catch(e) {
@@ -547,7 +543,7 @@ window.executeTeamSwitch = function(newIndex) {
 };
 
 // =========================================
-// SUSTITUCIONES Y FIN DE COMBATE
+// SUSTITUCIONES Y FIN DE COMBATE (CORREGIDO)
 // =========================================
 
 function handlePlayerFaint() {
@@ -585,19 +581,28 @@ function handlePlayerFaint() {
     }
 }
 
-function handlePlayerFaint() {
-    addCombatLog(`💀 ¡Tu ${CombatState.playerTeam[CombatState.activePlayerIndex].name} se ha debilitado!`);
-    CombatState.activePlayerIndex++;
+// ¡AQUÍ ESTABA EL ERROR! Esta función faltaba por completo y cortaba el juego
+function handleEnemyFaint() {
+    const currentEnemy = CombatState.enemyTeam[CombatState.activeEnemyIndex];
+    addCombatLog(`💀 ¡El ${currentEnemy.name} enemigo ha sido derrotado!`);
+    
+    // Aseguramos HP a 0
+    currentEnemy.currentHp = 0;
+    
+    // Pasamos al siguiente rival del array
+    CombatState.activeEnemyIndex++;
 
-    if (CombatState.activePlayerIndex >= CombatState.playerTeam.length) {
-        finishBattle(false);
+    // Comprobamos si quedan enemigos en el array
+    if (CombatState.activeEnemyIndex >= CombatState.enemyTeam.length) {
+        finishBattle(true); // Ya no quedan más, ¡has ganado!
     } else {
-        const newPlayer = CombatState.playerTeam[CombatState.activePlayerIndex];
-        addCombatLog(`⚠️ ¡Adelante, ${newPlayer.name}!`);
+        // Quedan rivales, sacamos al siguiente
+        const newEnemy = CombatState.enemyTeam[CombatState.activeEnemyIndex];
+        addCombatLog(`⚠️ ¡El rival envía a ${newEnemy.name}!`);
 
         if (typeof triggerAbility === 'function') {
-            const pEnterMsg = triggerAbility('onEnter', newPlayer, CombatState.enemyTeam[CombatState.activeEnemyIndex], null, 0, CombatState);
-            if (pEnterMsg) addCombatLog(pEnterMsg);
+            const eEnterMsg = triggerAbility('onEnter', newEnemy, CombatState.playerTeam[CombatState.activePlayerIndex], null, 0, CombatState);
+            if (eEnterMsg) addCombatLog(eEnterMsg);
         }
 
         CombatState.turn = 'player';
@@ -786,50 +791,4 @@ function updateCombatUI() {
     }
     if (playerImgElem) playerImgElem.style = getStatusFilterStyle(player.status);
     if (enemyImgElem) enemyImgElem.style = getStatusFilterStyle(enemy.status);
-
-    const moveButtons = document.querySelectorAll('.btn-move:not(.btn-switch-action)');
-    moveButtons.forEach((btn, idx) => {
-        const move = player.moves[idx];
-        if (move) {
-            btn.disabled = CombatState.turn !== 'player' || player.energy < move.cost || CombatState.isBattleOver;
-        }
-    });
-
-    const switchButton = document.querySelector('.btn-switch-action');
-    if (switchButton) {
-        switchButton.disabled = CombatState.turn !== 'player' || CombatState.isBattleOver;
-    }
-
-    const logBox = document.getElementById('combat-log-box');
-    if (logBox) {
-        logBox.innerHTML = CombatState.logHistory.slice(-5).map(msg => `<div class="log-item">${msg}</div>`).join('');
-        logBox.scrollTop = logBox.scrollHeight;
-    }
-}
-
-function addCombatLog(msg) {
-    CombatState.logHistory.push(msg);
-    updateCombatUI();
-}
-
-function triggerUnitAnimation(cardId, animType) {
-    const elem = document.getElementById(cardId);
-    if (!elem) return;
-
-    elem.classList.remove('anim-attack', 'anim-hit', 'anim-buff');
-    void elem.offsetWidth;
-    elem.classList.add(`anim-${animType}`);
-}
-
-function showFloatingDamage(cardId, amount, isCrit = false, message = '') {
-    const card = document.getElementById(cardId);
-    if (!card) return;
-
-    const popup = document.createElement('div');
-    popup.className = `damage-popup ${isCrit ? 'crit' : ''}`;
-    popup.innerText = `-${amount} ${message ? `\n${message}` : ''}`;
-
-    card.appendChild(popup);
-
-    setTimeout(() => popup.remove(), 1000);
 }
