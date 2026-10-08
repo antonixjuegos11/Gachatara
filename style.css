@@ -1354,3 +1354,135 @@ a.nav-link {
     font-weight: bold; 
     font-size: 14px; 
 }
+
+.combat-side-drawer {
+    position: absolute;
+    right: 20px;
+    top: 120px;
+    width: 280px;
+    background: #121824;
+    border: 2px solid #00d2ff;
+    border-radius: 8px;
+    padding: 12px;
+    z-index: 1000;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.8);
+    display: none;
+}
+
+.side-drawer-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #2a364f;
+    padding-bottom: 6px;
+    margin-bottom: 8px;
+    color: #fff;
+}
+
+.btn-close-drawer {
+    background: transparent;
+    border: none;
+    color: #fff;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+.side-drawer-slot {
+    display: flex;
+    align-items: center;
+    background: #1b2438;
+    margin-bottom: 6px;
+    padding: 6px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.side-drawer-slot:hover:not(.fainted) {
+    background: #283655;
+}
+
+.side-drawer-slot.fainted {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.side-slot-info {
+    margin-left: 8px;
+    font-size: 12px;
+    color: #fff;
+}
+
+.badge-tag {
+    margin-left: auto;
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.combat-side-drawer {
+    position: absolute;
+    right: 20px;
+    top: 120px;
+    width: 280px;
+    background: #121824;
+    border: 2px solid #00d2ff;
+    border-radius: 8px;
+    padding: 12px;
+    z-index: 1000;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.8);
+    display: none;
+}
+
+.side-drawer-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #2a364f;
+    padding-bottom: 6px;
+    margin-bottom: 8px;
+    color: #fff;
+}
+
+.btn-close-drawer {
+    background: transparent;
+    border: none;
+    color: #fff;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+.side-drawer-slot {
+    display: flex;
+    align-items: center;
+    background: #1b2438;
+    margin-bottom: 6px;
+    padding: 6px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.side-drawer-slot:hover:not(.fainted) {
+    background: #283655;
+}
+
+.side-drawer-slot.fainted {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.side-slot-info {
+    margin-left: 8px;
+    font-size: 12px;
+    color: #fff;
+}
+
+.badge-tag {
+    margin-left: auto;
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+.badge-tag.active { background: #28a745; color: white; }
+.badge-tag.fainted { background: #dc3545; color: white; }
