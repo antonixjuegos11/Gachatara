@@ -551,12 +551,13 @@ window.executeTeamSwitch = function(newIndex) {
 // =========================================
 
 function handlePlayerFaint() {
-    addCombatLog(`💀 ¡Tu ${CombatState.playerTeam[CombatState.activePlayerIndex].name} se ha debilitado!`);
+    const currentPkmn = CombatState.playerTeam[CombatState.activePlayerIndex];
+    addCombatLog(`💀 ¡Tu ${currentPkmn.name} se ha debilitado!`);
     
-    // Marcar explícitamente el HP a 0 por seguridad
-    CombatState.playerTeam[CombatState.activePlayerIndex].currentHp = 0;
+    // Asegurar que el HP se queda en 0
+    currentPkmn.currentHp = 0;
 
-    // Buscar el siguiente índice en el equipo que tenga vida (> 0)
+    // Buscar rigurosamente el primer Pokémon del equipo que tenga más de 0 de HP
     let nextIndex = -1;
     for (let i = 0; i < CombatState.playerTeam.length; i++) {
         if (CombatState.playerTeam[i].currentHp > 0) {
@@ -566,9 +567,10 @@ function handlePlayerFaint() {
     }
 
     if (nextIndex === -1) {
-        // No quedan Pokémon con vida en todo el equipo
+        // DERROTA TOTAL: No queda nadie con vida
         finishBattle(false);
     } else {
+        // VICTORIA INTERNA DEL RELEVO: Cambia al Pokémon vivo encontrado
         CombatState.activePlayerIndex = nextIndex;
         const newPlayer = CombatState.playerTeam[CombatState.activePlayerIndex];
         addCombatLog(`⚠️ ¡Adelante, ${newPlayer.name}!`);
