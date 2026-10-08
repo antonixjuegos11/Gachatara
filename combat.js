@@ -1,4 +1,4 @@
-// combat.js - Motor de Combate con Estados Traducidos y Efectos Visuales
+// combat.js - Motor de Combate con Estados Traducidos, Efectos Visuales y Cambio de Pokémon
 
 // =========================================
 // ESTADO Y CONFIGURACIÓN DEL COMBATE
@@ -239,7 +239,7 @@ function processStatusBeforeTurn(unit) {
     if (unit.status === "poisoned" || unit.status === "burned") {
         const statusDamage = Math.max(1, Math.floor(unit.maxHp * 0.1));
         unit.currentHp = Math.max(0, unit.currentHp - statusDamage);
-        addCombatLog(`⚠️ ${unit.name} sufre por su estado (${statusNameEs}) y pierde ${statusDamage} HP.`);
+        addCombatLog(`⚠️ ${unit.name} sufre por su estado (${statusNameEs}) and pierde ${statusDamage} HP.`);
     }
 
     if (unit.status === "paralyzed" && Math.random() < 0.25) {
@@ -443,6 +443,79 @@ function calculateDamage(attacker, defender, move) {
 }
 
 // =========================================
+// CAMBIO MANUAL DE POKÉMON EN COMBATE
+// =========================================
+
+window.openTeamSwitchModal = function() {
+    if (CombatState.isBattleOver || CombatState.turn !== 'player') return;
+
+    // Crear un modal flotante sencillo para elegir el Pokémon a cambiar
+    let modal = document.getElementById('team-switch-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'team-switch-modal';
+        modal.className = 'combat-modal-overlay';
+        document.body.appendChild(modal);
+    }
+
+    let listHtml = CombatState.playerTeam.map((pkmn, idx) => {
+        const isCurrent = idx === CombatState.activePlayerIndex;
+        const isFainted = pkmn.currentHp <= 0;
+        let statusBadge = pkmn.status ? ` [${STATUS_TRANSLATIONS[pkmn.status] || pkmn.status}]` : '';
+
+        return `
+            <div class="switch-slot ${isCurrent ? 'current' : ''} ${isFainted ? 'fainted' : ''}" 
+                 onclick="${!isCurrent && !isFainted ? `window.executeTeamSwitch(${idx})` : ''}">
+                <img src="${pkmn.sprite || (pkmn.sprites ? pkmn.sprites.front : '')}" width="50" height="50" alt="${pkmn.name}">
+                <div class="switch-slot-info">
+                    <strong>${pkmn.name}${statusBadge}</strong> (Nv. ${pkmn.level || 10})<br>
+                    <span>HP: ${pkmn.currentHp} / ${pkmn.maxHp}</span>
+                </div>
+                ${isCurrent ? '<span class="badge-current">En combate</span>' : ''}
+                ${isFainted ? '<span class="badge-fainted">Debilitado</span>' : ''}
+            </div>
+        `;
+    }).join('');
+
+    modal.innerHTML = `
+        <div class="combat-modal-content">
+            <h3>🔄 Cambiar Pokémon</h3>
+            <p>Selecciona el Pokémon que deseas enviar a la batalla:</p>
+            <div class="switch-list">
+                ${listHtml}
+            </div>
+            <button class="btn-close-modal" onclick="document.getElementById('team-switch-modal').style.display='none'">Cancelar</button>
+        </div>
+    `;
+    modal.style.display = 'flex';
+};
+
+window.executeTeamSwitch = function(newIndex) {
+    const modal = document.getElementById('team-switch-modal');
+    if (modal) modal.style.display = 'none';
+
+    const oldPokemon = CombatState.playerTeam[CombatState.activePlayerIndex];
+    const newPokemon = CombatState.playerTeam[newIndex];
+
+    if (!newPokemon || newPokemon.currentHp <= 0 || newIndex === CombatState.activePlayerIndex) return;
+
+    CombatState.activePlayerIndex = newIndex;
+    addCombatLog(`🔄 ¡Retiramos a ${oldPokemon.name}, adelante ${newPokemon.name}!`);
+
+    if (typeof triggerAbility === 'function') {
+        const pEnterMsg = triggerAbility('onEnter', newPokemon, CombatState.enemyTeam[CombatState.activeEnemyIndex], null, 0, CombatState);
+        if (pEnterMsg) addCombatLog(pEnterMsg);
+    }
+
+    renderCombatArena();
+
+    // Cambiar de Pokémon consume el turno del jugador, por lo que pasa al rival
+    CombatState.turn = 'enemy';
+    updateCombatUI();
+    setTimeout(executeEnemyTurn, 1000);
+};
+
+// =========================================
 // SUSTITUCIONES Y FIN DE COMBATE
 // =========================================
 
@@ -523,12 +596,11 @@ function awardRewards() {
 }
 
 // =========================================
-// RENDERIZADO E INTERFAZ GRÁFICA (CON FILTROS DE ESTADO)
+// RENDERIZADO E INTERFAZ GRÁFICA (CON FILTROS DE ESTADO Y BOTÓN DE CAMBIO)
 // =========================================
 
 function getStatusFilterStyle(status) {
     if (!status) return '';
-    // Aplica un tinte de color mediante filtros CSS al sprite según el estado
     switch (status) {
         case 'paralyzed': return 'filter: drop-shadow(0 0 8px yellow) sepia(1) saturate(5) hue-rotate(10deg);';
         case 'burned': return 'filter: drop-shadow(0 0 8px orange) sepia(1) saturate(4) hue-rotate(-30deg);';
@@ -601,7 +673,7 @@ function renderCombatArena() {
             </div>
         </div>
 
-        <!-- PANEL DE ACCIONES -->
+        <!-- PANEL DE ACCIONES Y CAMBIO -->
         <div class="combat-controls">
             <div class="moves-grid" id="moves-grid">
                 ${player.moves.map((move, idx) => {
@@ -616,6 +688,13 @@ function renderCombatArena() {
                         </button>
                     `;
                 }).join('')}
+            </div>
+            
+            <!-- NUEVO BOTÓN DE CAMBIO DE POKÉMON -->
+            <div class="combat-secondary-actions" style="margin-top: 10px; text-align: center;">
+                <button class="btn-switch-team" onclick="window.openTeamSwitchModal()" ${CombatState.turn !== 'player' ? 'disabled' : ''}>
+                    🔄 Cambiar Pokémon
+                </button>
             </div>
         </div>
 
@@ -647,7 +726,6 @@ function updateCombatUI() {
     const pEnergyFill = document.getElementById('player-energy-fill');
     if (pEnergyFill) pEnergyFill.style.width = `${(player.energy / player.maxEnergy) * 100}%`;
 
-    // Actualizar nombres y filtros visuales si cambian de estado en tiempo real
     const playerCardName = document.querySelector('.player-card .unit-name');
     const enemyCardName = document.querySelector('.enemy-card .unit-name');
     const playerImgElem = document.getElementById('player-sprite');
@@ -671,6 +749,11 @@ function updateCombatUI() {
             btn.disabled = CombatState.turn !== 'player' || player.energy < move.cost || CombatState.isBattleOver;
         }
     });
+
+    const switchButton = document.querySelector('.btn-switch-team');
+    if (switchButton) {
+        switchButton.disabled = CombatState.turn !== 'player' || CombatState.isBattleOver;
+    }
 
     const logBox = document.getElementById('combat-log-box');
     if (logBox) {
