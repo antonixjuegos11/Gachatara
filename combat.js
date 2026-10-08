@@ -98,12 +98,13 @@ function getEffectivenessLabel(mult) {
 // INICIALIZACIÓN Y PREPARACIÓN
 // =========================================
 
-function prepareCombatUnit(pkmn, level = 10) {
+function prepareCombatUnit(pkmn, level = 1) {
     if (!pkmn) return null;
 
     let pkmnTypes = pkmn.types || (pkmn.type ? [pkmn.type] : ['Normal']);
     let base = pkmn.baseStats;
     let ability = pkmn.ability || 'none';
+    const currentLevel = pkmn.level || level || 1;
 
     if ((!base || ability === 'none') && typeof DATABASE !== 'undefined') {
         for (const cat in DATABASE) {
@@ -121,12 +122,16 @@ function prepareCombatUnit(pkmn, level = 10) {
         base = { hp: 45, attack: 49, defense: 49, spAtk: 65, spDef: 65, speed: 45 };
     }
 
-    const maxHp = Math.floor(((2 * base.hp) * level) / 100) + level + 10;
-    const attack = Math.floor(((2 * base.attack) * level) / 100) + 5;
-    const defense = Math.floor(((2 * base.defense) * level) / 100) + 5;
-    const spAtk = Math.floor(((2 * base.spAtk) * level) / 100) + 5;
-    const spDef = Math.floor(((2 * base.spDef) * level) / 100) + 5;
-    const speed = Math.floor(((2 * base.speed) * level) / 100) + 5;
+    // Multiplicador de estrellas (+10% acumulativo por estrella que ya tenías implementado)
+    const starMultiplier = 1 + ((pkmn.stars || 0) * 0.10);
+
+    // Fórmula adaptada de Pokémon para escalar stats de forma equilibrada hasta el nivel 100
+    const maxHp = Math.floor(((((2 * base.hp) * currentLevel) / 100) + currentLevel + 10) * starMultiplier);
+    const attack = Math.floor(((((2 * base.attack) * currentLevel) / 100) + 5) * starMultiplier);
+    const defense = Math.floor(((((2 * base.defense) * currentLevel) / 100) + 5) * starMultiplier);
+    const spAtk = Math.floor(((((2 * base.spAtk) * currentLevel) / 100) + 5) * starMultiplier);
+    const spDef = Math.floor(((((2 * base.spDef) * currentLevel) / 100) + 5) * starMultiplier);
+    const speed = Math.floor(((((2 * base.speed) * currentLevel) / 100) + 5) * starMultiplier);
 
     const primaryType = pkmnTypes[0];
     const secondaryType = pkmnTypes[1] || primaryType;
@@ -172,20 +177,20 @@ function prepareCombatUnit(pkmn, level = 10) {
 
     return {
         ...pkmn,
-        level,
+        level: currentLevel,
         maxHp,
-        currentHp: maxHp,
+        currentHp: pkmn.currentHp !== undefined ? pkmn.currentHp : maxHp,
         attack,
         defense,
         spAtk,
         spDef,
         speed,
-        energy: 0,
+        energy: pkmn.energy || 0,
         maxEnergy: 100,
         types: pkmnTypes,
         type: primaryType,
         ability,
-        status: null,
+        status: pkmn.status || null,
         moves: dynamicMoves
     };
 }

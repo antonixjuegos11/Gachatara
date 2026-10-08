@@ -149,7 +149,7 @@ function addPokemonToInventory(pkmn) {
             ...fullPkmnData,
             stars: 0,
             count: 1,
-            level: pkmn.level || 10,
+            level: pkmn.level || 1,
             baseStats: fullPkmnData.baseStats || { hp: 45, attack: 49, defense: 49, spAtk: 65, spDef: 65, speed: 45 },
             ability: fullPkmnData.ability || pkmn.ability || 'Presión'
         });

@@ -23,10 +23,17 @@ function getRandomEnemy(level = 10) {
 }
 
 // Función auxiliar para generar un equipo enemigo de N miembros
-function generateEnemyTeam(count, level = 10) {
+function generateEnemyTeam(playerTeam, count) {
+    // Calcula el nivel medio del equipo del jugador (o toma el del primer Pokémon, mínimo nivel 1)
+    let avgLevel = 1;
+    if (playerTeam && playerTeam.length > 0) {
+        const totalLevel = playerTeam.reduce((sum, p) => sum + (p.level || 1), 0);
+        avgLevel = Math.max(1, Math.floor(totalLevel / playerTeam.length));
+    }
+
     let team = [];
     for (let i = 0; i < count; i++) {
-        team.push(getRandomEnemy(level));
+        team.push(getRandomEnemy(avgLevel));
     }
     return team;
 }
