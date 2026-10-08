@@ -40,31 +40,30 @@ function generateEnemyTeam(playerTeam, count) {
 // -----------------------------------------
 function startQuickBattle() {
     let playerTeam = [];
-
     const savedFastTeam = localStorage.getItem('pokemon_active_team_fast');
+    
     if (savedFastTeam) {
-        try { playerTeam = JSON.parse(savedFastTeam); } catch (e) { playerTeam = []; }
+        try { 
+            let rawTeam = JSON.parse(savedFastTeam);
+            // Sincronizamos con los datos más recientes del inventario (incluyendo el nivel real)
+            playerTeam = rawTeam.map(p => {
+                const realInvPkmn = userInventory.find(item => Number(item.id) === Number(p.id));
+                return realInvPkmn ? { ...p, ...realInvPkmn } : p;
+            });
+        } catch (e) { playerTeam = []; }
     }
 
     if (!playerTeam || playerTeam.length === 0) {
-        if (typeof userInventory !== 'undefined' && userInventory.length > 0) {
-            playerTeam = userInventory.slice(0, 3);
-        } else {
-            playerTeam = [{
-                id: 25, name: "Pikachu", type: "Eléctrico", hp: 70, attack: 60, defense: 40, speed: 90,
-                sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/25.png", level: 1
-            }];
-        }
+        playerTeam = [{ id: 25, name: "Pikachu", level: 1, sprite: "..." }];
     }
 
-    // Genera 3 enemigos (o tantos como tenga tu equipo rápido, máximo 3)
     const teamSize = Math.min(3, playerTeam.length);
     const finalPlayerTeam = playerTeam.slice(0, teamSize);
     const enemyTeam = generateEnemyTeam(finalPlayerTeam, teamSize);
 
     if (typeof startBattle === 'function') {
         startBattle(finalPlayerTeam, enemyTeam, 'quick', (hasWon) => {
-            if (hasWon) awardTeamExperience(finalPlayerTeam, 50); // Otorga EXP al ganar
+            if (hasWon) awardTeamExperience(finalPlayerTeam, 50);
         });
     }
 }

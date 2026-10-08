@@ -550,19 +550,32 @@ window.executeTeamSwitch = function(newIndex) {
 // SUSTITUCIONES Y FIN DE COMBATE
 // =========================================
 
-function handleEnemyFaint() {
-    addCombatLog(`💀 ¡El ${CombatState.enemyTeam[CombatState.activeEnemyIndex].name} enemigo ha sido derrotado!`);
-    CombatState.activeEnemyIndex++;
+function handlePlayerFaint() {
+    addCombatLog(`💀 ¡Tu ${CombatState.playerTeam[CombatState.activePlayerIndex].name} se ha debilitado!`);
+    
+    // Marcar explícitamente el HP a 0 por seguridad
+    CombatState.playerTeam[CombatState.activePlayerIndex].currentHp = 0;
 
-    if (CombatState.activeEnemyIndex >= CombatState.enemyTeam.length) {
-        finishBattle(true);
+    // Buscar el siguiente índice en el equipo que tenga vida (> 0)
+    let nextIndex = -1;
+    for (let i = 0; i < CombatState.playerTeam.length; i++) {
+        if (CombatState.playerTeam[i].currentHp > 0) {
+            nextIndex = i;
+            break;
+        }
+    }
+
+    if (nextIndex === -1) {
+        // No quedan Pokémon con vida en todo el equipo
+        finishBattle(false);
     } else {
-        const newEnemy = CombatState.enemyTeam[CombatState.activeEnemyIndex];
-        addCombatLog(`⚠️ ¡El rival envía a ${newEnemy.name}!`);
+        CombatState.activePlayerIndex = nextIndex;
+        const newPlayer = CombatState.playerTeam[CombatState.activePlayerIndex];
+        addCombatLog(`⚠️ ¡Adelante, ${newPlayer.name}!`);
 
         if (typeof triggerAbility === 'function') {
-            const eEnterMsg = triggerAbility('onEnter', newEnemy, CombatState.playerTeam[CombatState.activePlayerIndex], null, 0, CombatState);
-            if (eEnterMsg) addCombatLog(eEnterMsg);
+            const pEnterMsg = triggerAbility('onEnter', newPlayer, CombatState.enemyTeam[CombatState.activeEnemyIndex], null, 0, CombatState);
+            if (pEnterMsg) addCombatLog(pEnterMsg);
         }
 
         CombatState.turn = 'player';
