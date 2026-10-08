@@ -73,8 +73,9 @@
         <div class="dex-frame">
             <div style="text-align: center; padding: 20px;">
                 <h2 style="font-family: 'Orbitron', sans-serif; color: #00f2fe; margin-bottom: 20px;">MODOS DE COMBATE</h2>
-                <div class="gacha-buttons">
-                    <button class="btn-pull" onclick="startQuickBattle()">⚔️ Partida Rápida (1v1)</button>
+                <div class="gacha-buttons" style="display: flex; gap: 15px; justify-content: center; flex-wrap: wrap;">
+                    <button class="btn-pull" onclick="startQuickBattle()">⚔️ Partida Rápida (Equipo de 3)</button>
+                    <button class="btn-pull" onclick="startStrategyBattle()">🛡️ Partida Estratégica (Equipo de 6)</button>
                 </div>
             </div>
 
@@ -87,12 +88,25 @@
     <main id="tab-equipo" class="lobby-container tab-content">
         <div class="dex-frame">
             <div class="equipo-header">
-                <h2>MI EQUIPO / INVENTARIO</h2>
+                <h2>GESTIÓN DE EQUIPOS Y INVENTARIO</h2>
                 <div class="equipo-stats">
                     <span>Total capturados: <strong id="total-capturados">0</strong></span>
                 </div>
             </div>
-            
+
+            <!-- Selector de Modo de Equipo -->
+            <div class="team-builder-tabs" style="display: flex; gap: 10px; margin: 15px 0; justify-content: center;">
+                <button class="banner-btn active" onclick="switchTeamMode('strategy', event)">Equipo Estratégico (6)</button>
+                <button class="banner-btn" onclick="switchTeamMode('fast', event)">Equipo Rápido (3)</button>
+            </div>
+
+            <!-- Slot visual de los equipos activos -->
+            <div id="active-team-slots" style="display: flex; gap: 10px; margin-bottom: 20px; justify-content: center; flex-wrap: wrap; background: rgba(0,0,0,0.2); padding: 15px; border-radius: 10px;">
+                <!-- Se rellenará dinámicamente -->
+            </div>
+
+            <p style="text-align: center; color: #00f2fe; font-size: 14px; margin-bottom: 10px;">💡 Haz clic en cualquier Pokémon del inventario para añadirlo o quitarlo del equipo activo.</p>
+
             <div id="inventory-grid" class="dex-grid">
                 <!-- Las cartas guardadas se cargarán dinámicamente aquí -->
             </div>
@@ -133,7 +147,7 @@
     <main id="tab-dex" class="lobby-container tab-content">
         <div class="dex-frame">
             <div class="dex-header">
-                <h2 class="dex-title">POKÉDEX NACIONAL</h2>
+                <h2>POKÉDEX NACIONAL</h2>
                 <div class="dex-progress-wrapper">
                     <span id="dex-counter">0 / 1074 (0%)</span>
                     <div class="progress-bar-bg">

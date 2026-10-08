@@ -1,4 +1,4 @@
-// game.js - Fondo de partículas, Pokédex, Inventario, Monedas, Estrellas y Modal
+// game.js - Fondo de partículas, Pokédex, Inventario, Equipos Activos, Monedas, Estrellas y Modal
 
 // =========================================
 // FONDO ANIMADO DE PARTÍCULAS
@@ -77,16 +77,32 @@ function updateCurrenciesUI() {
 }
 
 // =========================================
-// GESTIÓN DE INVENTARIO, POKÉDEX Y ESTRELLAS
+// GESTIÓN DE INVENTARIO, POKÉDEX, EQUIPOS Y ESTRELLAS
 // =========================================
 
 const POKEDEX_KEY = 'pokemon_pokedex_collection';
 const INVENTORY_KEY = 'pokemon_user_inventory';
+const ACTIVE_TEAM_STRATEGY_KEY = 'pokemon_active_team_strategy';
+const ACTIVE_TEAM_FAST_KEY = 'pokemon_active_team_fast';
 
 const savedDex = JSON.parse(localStorage.getItem(POKEDEX_KEY) || '[]');
 const playerCollection = new Set(savedDex);
 
 let userInventory = JSON.parse(localStorage.getItem(INVENTORY_KEY) || '[]');
+let activeTeamStrategy = JSON.parse(localStorage.getItem(ACTIVE_TEAM_STRATEGY_KEY) || '[]'); // Máx 6
+let activeTeamFast = JSON.parse(localStorage.getItem(ACTIVE_TEAM_FAST_KEY) || '[]'); // Máx 3
+
+let currentTeamMode = 'strategy'; // 'strategy' (6) o 'fast' (3)
+
+function switchTeamMode(mode, event) {
+    currentTeamMode = mode;
+    document.querySelectorAll('.team-builder-tabs .banner-btn').forEach(btn => btn.classList.remove('active'));
+    if (event && event.currentTarget) {
+        event.currentTarget.classList.add('active');
+    }
+    renderActiveTeamSlots();
+    renderInventory();
+}
 
 // Configuración de costes de duplicados para las 7 estrellas
 const DUPE_COSTS_PER_STAR = [1, 2, 3, 5, 8, 12, 18]; 
@@ -97,28 +113,27 @@ function getDupeCostForNextStar(currentStars) {
 }
 
 function getStatMultiplierForStars(stars) {
-    // Cada estrella otorga un +10% acumulativo a las estadísticas base
     return 1 + ((stars || 0) * 0.10);
 }
 
 function saveStorage() {
     localStorage.setItem(POKEDEX_KEY, JSON.stringify(Array.from(playerCollection)));
     localStorage.setItem(INVENTORY_KEY, JSON.stringify(userInventory));
+    localStorage.setItem(ACTIVE_TEAM_STRATEGY_KEY, JSON.stringify(activeTeamStrategy));
+    localStorage.setItem(ACTIVE_TEAM_FAST_KEY, JSON.stringify(activeTeamFast));
 }
 
-// Añadir Pokémon al inventario (compatible con duplicados y datos base)
+// Añadir Pokémon al inventario
 function addPokemonToInventory(pkmn) {
     if (!pkmn || !pkmn.id) return;
 
     playerCollection.add(Number(pkmn.id));
 
-    // Buscar si ya existe por ID en el inventario del usuario
     let existing = userInventory.find(item => Number(item.id) === Number(pkmn.id));
 
     if (existing) {
         existing.count = (existing.count || existing.dupes || 1) + 1;
     } else {
-        // Enriquecer con datos de la base de datos si faltan
         let fullPkmnData = pkmn;
         if (typeof DATABASE !== 'undefined' && (!pkmn.baseStats || !pkmn.ability)) {
             for (const cat in DATABASE) {
@@ -142,10 +157,78 @@ function addPokemonToInventory(pkmn) {
 
     saveStorage();
     renderInventory();
+    renderActiveTeamSlots();
     
     if (typeof updateDexProgress === 'function') {
         updateDexProgress();
     }
+}
+
+// Renderizar los slots del equipo activo superior
+function renderActiveTeamSlots() {
+    const slotsContainer = document.getElementById('active-team-slots');
+    if (!slotsContainer) return;
+
+    slotsContainer.innerHTML = '';
+    const maxSlots = currentTeamMode === 'strategy' ? 6 : 3;
+    const currentTeam = currentTeamMode === 'strategy' ? activeTeamStrategy : activeTeamFast;
+
+    for (let i = 0; i < maxSlots; i++) {
+        const pkmn = currentTeam[i];
+        const slotDiv = document.createElement('div');
+        slotDiv.className = 'active-team-slot';
+        slotDiv.style.cssText = 'width: 70px; height: 70px; background: rgba(255,255,255,0.05); border: 2px dashed rgba(0,242,254,0.4); border-radius: 10px; display: flex; align-items: center; justify-content: center; position: relative; cursor: pointer; transition: 0.2s;';
+
+        if (pkmn) {
+            slotDiv.style.border = '2px solid #00f2fe';
+            slotDiv.innerHTML = `
+                <img src="${pkmn.sprite}" alt="${pkmn.name}" style="width: 50px; height: 50px; object-fit: contain;">
+                <span style="position: absolute; top: -5px; right: -5px; background: #eb4d4b; color: white; border-radius: 50%; width: 18px; height: 18px; font-size: 10px; display: flex; align-items: center; justify-content: center; font-weight: bold;">✕</span>
+            `;
+            slotDiv.title = `Quitar a ${pkmn.name} del equipo`;
+            slotDiv.onclick = () => removePokemonFromTeam(i);
+        } else {
+            slotDiv.innerHTML = `<span style="color: rgba(255,255,255,0.3); font-size: 20px;">+</span>`;
+            slotDiv.title = `Slot vacío (${i + 1}/${maxSlots})`;
+        }
+
+        slotsContainer.appendChild(slotDiv);
+    }
+}
+
+function removePokemonFromTeam(index) {
+    if (currentTeamMode === 'strategy') {
+        activeTeamStrategy.splice(index, 1);
+    } else {
+        activeTeamFast.splice(index, 1);
+    }
+    saveStorage();
+    renderActiveTeamSlots();
+    renderInventory();
+}
+
+function togglePokemonInTeam(pkmn) {
+    const currentTeam = currentTeamMode === 'strategy' ? activeTeamStrategy : activeTeamFast;
+    const maxSlots = currentTeamMode === 'strategy' ? 6 : 3;
+
+    // Comprobar si ya está en el equipo
+    const existingIndex = currentTeam.findIndex(item => Number(item.id) === Number(pkmn.id));
+
+    if (existingIndex !== -1) {
+        // Si ya está, lo sacamos
+        currentTeam.splice(existingIndex, 1);
+    } else {
+        // Si no está, comprobamos si hay hueco
+        if (currentTeam.length >= maxSlots) {
+            alert(`¡El equipo ${currentTeamMode === 'strategy' ? 'Estratégico' : 'Rápido'} ya está lleno (${maxSlots}/${maxSlots})!`);
+            return;
+        }
+        currentTeam.push(pkmn);
+    }
+
+    saveStorage();
+    renderActiveTeamSlots();
+    renderInventory();
 }
 
 // Renderizar Inventario ordenado y agrupado
@@ -167,6 +250,7 @@ function renderInventory() {
     }
 
     const sortedInventory = [...userInventory].sort((a, b) => Number(a.id) - Number(b.id));
+    const currentTeam = currentTeamMode === 'strategy' ? activeTeamStrategy : activeTeamFast;
 
     sortedInventory.forEach(pkmn => {
         const rawRarity = pkmn.rarity || 'comun';
@@ -175,20 +259,33 @@ function renderInventory() {
         pkmn.stars = pkmn.stars || 0;
         const totalCopies = pkmn.count || pkmn.dupes || 1;
         const starsDisplay = '★'.repeat(pkmn.stars);
+        const isInTeam = currentTeam.some(item => Number(item.id) === Number(pkmn.id));
 
         const card = document.createElement('div');
-        card.className = `pokemon-card card-pokemon ${cleanRarityClass}`;
-        card.style.cursor = 'pointer';
+        card.className = `pokemon-card card-pokemon ${cleanRarityClass} ${isInTeam ? 'in-active-team' : ''}`;
+        card.style.cssText = 'cursor: pointer; position: relative;';
         
+        if (isInTeam) {
+            card.style.border = '2px solid #2ed573';
+            card.style.boxShadow = '0 0 10px rgba(46, 213, 115, 0.4)';
+        }
+
         const countBadge = totalCopies > 1 ? `<span class="card-count-badge">x${totalCopies}</span>` : '';
+        const teamBadge = isInTeam ? `<span style="position: absolute; top: 5px; right: 5px; background: #2ed573; color: #000; font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 4px;">EN EQUIPO</span>` : '';
 
         card.innerHTML = `
             ${countBadge}
+            ${teamBadge}
             ${pkmn.stars > 0 ? `<div class="card-stars-badge" style="position: absolute; top: 5px; left: 5px; color: #f1c40f; font-size: 11px; text-shadow: 0 1px 2px #000;">${starsDisplay}</div>` : ''}
             <div class="card-id">#${String(pkmn.id).padStart(4, '0')}</div>
             <img src="${pkmn.sprite}" alt="${pkmn.name}">
             <div class="card-name">${pkmn.name}</div>
             <div class="card-rarity">${rawRarity.toUpperCase()}</div>
+            <div style="display: flex; gap: 5px; margin-top: 5px;">
+                <button onclick="event.stopPropagation(); togglePokemonInTeam(${JSON.stringify(pkmn).replace(/"/g, '&quot;')})" style="flex: 1; background: ${isInTeam ? '#eb4d4b' : '#2ed573'}; color: white; border: none; padding: 4px; font-size: 10px; font-weight: bold; border-radius: 4px; cursor: pointer;">
+                    ${isInTeam ? 'Quitar' : 'Añadir'}
+                </button>
+            </div>
         `;
 
         card.onclick = () => openPokemonModal(pkmn.id);
@@ -226,7 +323,6 @@ function openPokemonModal(pokemonId) {
     const sprite = pkmn.sprite || '';
     const typeLabel = (pkmn.types || [pkmn.type || 'Normal']).join(' / ');
     
-    // Resolución segura de la habilidad usando el archivo habilidades.js
     let abilityName = pkmn.ability || 'Ninguna';
     if (typeof getAbilityDisplayName === 'function') {
         abilityName = getAbilityDisplayName(pkmn.ability);
@@ -236,7 +332,6 @@ function openPokemonModal(pokemonId) {
     const canAwaken = pkmn.stars < 7 && totalCopies > nextCost;
     const starsDisplay = '★'.repeat(pkmn.stars) + '☆'.repeat(7 - pkmn.stars);
 
-    // Calcular estadísticas con el multiplicador de estrellas (+10% por estrella)
     const mult = getStatMultiplierForStars(pkmn.stars);
     const base = pkmn.baseStats || { hp: 45, attack: 49, defense: 49, spAtk: 65, spDef: 65, speed: 45 };
     const level = pkmn.level || 10;
@@ -300,10 +395,10 @@ function awakenPokemon(pokemonId) {
     let totalCopies = pkmn.count || pkmn.dupes || 1;
 
     if (pkmn.stars < 7 && totalCopies > nextCost) {
-        totalCopies -= nextCost; 
+        totalCopies -= nextCost;        
         pkmn.count = totalCopies;
         pkmn.dupes = totalCopies;
-        pkmn.stars += 1;        
+        pkmn.stars += 1;          
         
         saveStorage();
         openPokemonModal(pokemonId); 
@@ -396,6 +491,7 @@ function switchTab(tabId, event) {
         renderDex();
     } else if (tabId === 'inventory' || tabId === 'equipo' || tabId === 'lobby') {
         renderInventory();
+        renderActiveTeamSlots();
     }
 }
 
@@ -403,9 +499,11 @@ function switchTab(tabId, event) {
 document.addEventListener('DOMContentLoaded', () => {
     updateCurrenciesUI();
     renderInventory();
+    renderActiveTeamSlots();
 });
 
 window.addEventListener('storage', () => {
     updateCurrenciesUI();
     renderInventory();
+    renderActiveTeamSlots();
 });
