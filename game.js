@@ -97,6 +97,7 @@ function getDupeCostForNextStar(currentStars) {
 }
 
 function getStatMultiplierForStars(stars) {
+    // Cada estrella otorga un +10% acumulativo a las estadísticas base
     return 1 + ((stars || 0) * 0.10);
 }
 
@@ -105,20 +106,19 @@ function saveStorage() {
     localStorage.setItem(INVENTORY_KEY, JSON.stringify(userInventory));
 }
 
-// Añadir Pokémon al inventario (compatible con contador de dupes previo y nuevo)
+// Añadir Pokémon al inventario (compatible con duplicados y datos base)
 function addPokemonToInventory(pkmn) {
     if (!pkmn || !pkmn.id) return;
 
     playerCollection.add(Number(pkmn.id));
 
-    // Buscar si ya existe por ID
+    // Buscar si ya existe por ID en el inventario del usuario
     let existing = userInventory.find(item => Number(item.id) === Number(pkmn.id));
 
     if (existing) {
-        // Soporta tanto 'count' como 'dupes' según se guardara antes
         existing.count = (existing.count || existing.dupes || 1) + 1;
     } else {
-        // Asegurar que rescatamos bien los datos base y habilidad de la base de datos global si existe
+        // Enriquecer con datos de la base de datos si faltan
         let fullPkmnData = pkmn;
         if (typeof DATABASE !== 'undefined' && (!pkmn.baseStats || !pkmn.ability)) {
             for (const cat in DATABASE) {
@@ -148,7 +148,7 @@ function addPokemonToInventory(pkmn) {
     }
 }
 
-// Renderizar Inventario ordenado y con distintivos de estrellas y copias
+// Renderizar Inventario ordenado y agrupado
 function renderInventory() {
     const container = document.getElementById('inventory-grid') || document.getElementById('team-grid');
     const counterElem = document.getElementById('total-capturados');
@@ -226,18 +226,17 @@ function openPokemonModal(pokemonId) {
     const sprite = pkmn.sprite || '';
     const typeLabel = (pkmn.types || [pkmn.type || 'Normal']).join(' / ');
     
-    // Resolución segura de la habilidad
+    // Resolución segura de la habilidad usando el archivo habilidades.js
     let abilityName = pkmn.ability || 'Ninguna';
     if (typeof getAbilityDisplayName === 'function') {
         abilityName = getAbilityDisplayName(pkmn.ability);
     }
 
     const nextCost = getDupeCostForNextStar(pkmn.stars);
-    // Para despertar se gastan 'nextCost' duplicados (dejando la unidad principal intocable)
     const canAwaken = pkmn.stars < 7 && totalCopies > nextCost;
     const starsDisplay = '★'.repeat(pkmn.stars) + '☆'.repeat(7 - pkmn.stars);
 
-    // Calcular estadísticas basadas en el nivel y las estrellas
+    // Calcular estadísticas con el multiplicador de estrellas (+10% por estrella)
     const mult = getStatMultiplierForStars(pkmn.stars);
     const base = pkmn.baseStats || { hp: 45, attack: 49, defense: 49, spAtk: 65, spDef: 65, speed: 45 };
     const level = pkmn.level || 10;
