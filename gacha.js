@@ -5,9 +5,9 @@ let currentGen = 1;
 // Rangos de IDs por Generación
 const GEN_RANGES = {
     1: { min: 1, max: 151, megas: ["Mega Venusaur", "Mega Charizard X", "Mega Charizard Y", "Mega Blastoise", "Mega Alakazam", "Mega Gengar", "Mega Kangaskhan", "Mega Pinsir", "Mega Gyarados", "Mega Aerodactyl", "Mega Mewtwo X", "Mega Mewtwo Y", "Mega Beedrill", "Mega Pidgeot", "Mega Slowbro"] },
-    2: { min: 152, max: 251, megas: ["Mega Ampharos", "Mega Scizor", "Mega Heracross", "Mega Houndoom", "Mega Tyranitar"] },
+    2: { min: 152, max: 251, megas: ["Mega Ampharos", "Mega Scizor", "Mega Heracross", "Mega Houndoom", "Mega Tyranitar", "Mega Steelix"] },
     3: { min: 252, max: 386, megas: ["Mega Blaziken", "Mega Gardevoir", "Mega Mawile", "Mega Aggron", "Mega Medicham", "Mega Manectric", "Mega Banette", "Mega Absol", "Mega Sceptile", "Mega Swampert", "Mega Sableye", "Mega Sharpedo", "Mega Camerupt", "Mega Altaria", "Mega Glalie", "Mega Salamence", "Mega Metagross", "Mega Latias", "Mega Latios", "Groudon Primigenio", "Kyogre Primigenio", "Mega Rayquaza"] },
-    4: { min: 387, max: 493, megas: ["Mega Garchomp", "Mega Lucario", "Mega Abomasnow", "Mega Lopunny"] },
+    4: { min: 387, max: 493, megas: ["Mega Garchomp", "Mega Lucario", "Mega Abomasnow", "Mega Lopunny", "Mega Gallade"] },
     5: { min: 494, max: 649, megas: ["Mega Audino"] },
     6: { min: 650, max: 721, megas: ["Mega Diancie"] },
     7: { min: 722, max: 809, megas: [] },
@@ -58,9 +58,7 @@ function getRandomPokemonFromGen(rarity) {
 
     // FALLBACKS DE SEGURIDAD (Para no dejar ningún hueco nulo nunca)
     if (filtered.length === 0) {
-        if (rarity === 'secreto') {
-            filtered = DATABASE.secreto || [];
-        }
+        // Las megas NUNCA se cogen de otra generación: si esta no tiene, se baja a legendario de la misma gen
         if (filtered.length === 0) {
             filtered = (DATABASE.legendario || []).filter(pkmn => pkmn && pkmn.id >= range.min && pkmn.id <= range.max);
         }

@@ -222,16 +222,7 @@ function startBattle(playerUnits, enemyUnits, mode = 'quick', onEndCallback = nu
         resolvedTeam = playerUnits;
     }
 
-    // Solo combaten Pokémon con vida (los debilitados nunca salen) y hace falta al menos uno
-    CombatState.playerTeam = (resolvedTeam || [])
-        .map(p => prepareCombatUnit(p, p.level || 1))
-        .filter(u => u && u.currentHp > 0);
-
-    if (CombatState.playerTeam.length === 0) {
-        alert("¡Necesitas al menos un Pokémon en tu equipo para poder luchar! Ve a la pestaña 'Equipo'.");
-        return;
-    }
-
+    CombatState.playerTeam = resolvedTeam.map(p => prepareCombatUnit(p, p.level || 1));
     CombatState.enemyTeam = enemyUnits.map(p => prepareCombatUnit(p, p.level || 1));
     CombatState.activePlayerIndex = 0;
     CombatState.activeEnemyIndex = 0;
@@ -300,12 +291,6 @@ window.executePlayerMove = function(moveIndex) {
     const defender = CombatState.enemyTeam[CombatState.activeEnemyIndex];
 
     if (!attacker || !defender) return;
-
-    // Un Pokémon debilitado no puede atacar: se sustituye
-    if (attacker.currentHp <= 0) {
-        handlePlayerFaint();
-        return;
-    }
 
     if (processStatusBeforeTurn(attacker)) {
         updateCombatUI();
@@ -648,9 +633,7 @@ function handleEnemyFaint() {
     addCombatLog(`💀 ¡El ${currentEnemy.name} enemigo ha sido derrotado!`);
     
     currentEnemy.currentHp = 0;
-    // Siguiente rival que siga vivo (no el índice siguiente a ciegas, por si el rival hizo cambios)
-    const nextEnemyIdx = CombatState.enemyTeam.findIndex(e => e.currentHp > 0);
-    CombatState.activeEnemyIndex = nextEnemyIdx === -1 ? CombatState.enemyTeam.length : nextEnemyIdx;
+    CombatState.activeEnemyIndex++;
 
     if (CombatState.activeEnemyIndex >= CombatState.enemyTeam.length) {
         finishBattle(true);
@@ -667,6 +650,49 @@ function handleEnemyFaint() {
         renderCombatArena();
     }
 }
+// Reparte la XP a cada Pokémon del equipo (sobre el inventario real) y devuelve el resumen para el cartel final
+function applyBattleXp(team, xpGained) {
+    const summary = [];
+    (team || []).forEach(battlePkmn => {
+        if (!battlePkmn) return;
+        const inv = typeof userInventory !== 'undefined'
+            ? userInventory.find(item => Number(item.id) === Number(battlePkmn.id))
+            : null;
+        const target = inv || battlePkmn;
+
+        target.level = Number(target.level) || 1;
+        target.xp = Number(target.xp) || 0;
+        const oldLevel = target.level;
+
+        if (target.level < 100) {
+            target.xp += xpGained;
+            let needed = target.level * 100;
+            while (target.xp >= needed && target.level < 100) {
+                target.xp -= needed;
+                target.level += 1;
+                needed = target.level * 100;
+            }
+        }
+
+        if (battlePkmn !== target) {
+            battlePkmn.level = target.level;
+            battlePkmn.xp = target.xp;
+        }
+
+        summary.push({
+            name: target.name,
+            sprite: target.sprite || battlePkmn.sprite || '',
+            oldLevel: oldLevel,
+            newLevel: target.level,
+            leveledUp: target.level > oldLevel,
+            xp: target.xp,
+            xpNeeded: target.level * 100,
+            gained: xpGained
+        });
+    });
+    return summary;
+}
+
 function finishBattle(hasPlayerWon) {
     CombatState.isBattleOver = true;
     CombatState.turn = 'none';
@@ -692,43 +718,8 @@ function finishBattle(hasPlayerWon) {
             saveCurrencies(currencies);
         }
 
-        // 2. Distribuir XP y recopilar qué Pokémon suben de nivel de forma real
-        let levelUpsSummary = [];
-        const xpGained = 50;
-
-        CombatState.playerTeam.forEach(battlePkmn => {
-            let invPkmn = typeof userInventory !== 'undefined' 
-                ? userInventory.find(item => Number(item.id) === Number(battlePkmn.id)) 
-                : null;
-
-            let target = invPkmn || battlePkmn;
-            target.level = target.level || 1;
-            target.xp = target.xp || 0;
-
-            if (target.level < 100) {
-                let oldLevel = target.level;
-                target.xp += xpGained;
-                let xpNeeded = target.level * 100;
-
-                // Bucle por si gana tanta XP que sube varios niveles de golpe
-                while (target.xp >= xpNeeded && target.level < 100) {
-                    target.xp -= xpNeeded;
-                    target.level += 1;
-                    xpNeeded = target.level * 100;
-                }
-
-                // Sincronizamos ambos por si acaso
-                if (invPkmn && battlePkmn) {
-                    battlePkmn.level = invPkmn.level;
-                    battlePkmn.xp = invPkmn.xp;
-                }
-
-                // Si el nivel subió, lo añadimos al listado del resumen
-                if (target.level > oldLevel) {
-                    levelUpsSummary.push({ name: target.name, newLevel: target.level });
-                }
-            }
-        });
+        // 2. Distribuir XP y recopilar el resumen de progresión de TODO el equipo
+        const levelUpsSummary = applyBattleXp(CombatState.playerTeam, 50);
 
         if (typeof saveStorage === 'function') saveStorage();
         if (typeof saveInventory === 'function') saveInventory();
@@ -772,40 +763,6 @@ function showBattleResultOverlay(hasWon) {
     }, 2000);
 }
 
-function showPostBattleModal(hasWon, coins, tickets, levelUps) {
-    const existing = document.getElementById('post-battle-modal');
-    if (existing) existing.remove();
-
-    let levelUpsHtml = levelUps.length > 0 
-        ? levelUps.map(l => `<p style="color:#34d399; margin:4px 0;">🎉 ¡<b>${l.name}</b> subió al <b>Nv. ${l.newLevel}</b>!</p>`).join('')
-        : '<p style="color:#aaa; margin:4px 0;">Ningún Pokémon subió de nivel esta vez.</p>';
-
-    const modal = document.createElement('div');
-    modal.id = 'post-battle-modal';
-    modal.className = 'post-battle-backdrop';
-    modal.innerHTML = `
-        <div class="post-battle-card ${hasWon ? 'win' : 'lose'}">
-            <h2>${hasWon ? '¡Victoria Épica!' : 'Derrota...'}</h2>
-            <p class="subtitle">${hasWon ? 'Has dominado el combate con estrategia' : 'Entrena más duro y mejora tu equipo'}</p>
-            
-            ${hasWon ? `
-                <div class="rewards-box">
-                    <h4>🎁 Recompensas Obtenidas:</h4>
-                    <p>🪙 +${coins} Monedas</p>${tickets > 0 ? `<p>🎟️ +${tickets} Ticket(s)</p>` : ''}
-                    <p>⭐ +50 XP para todo el equipo</p>
-                </div>
-                <div class="levelup-box">
-                    <h4>📈 Progresión:</h4>
-                    ${levelUpsHtml}
-                </div>
-            ` : ''}
-
-            <button class="btn-close-post-battle" onclick="closePostBattleAndReturn('${hasWon}')">Continuar</button>
-        </div>
-    `;
-
-    document.body.appendChild(modal);
-}
 
 window.closePostBattleAndReturn = function(hasWon) {
     const modal = document.getElementById('post-battle-modal');
@@ -841,40 +798,6 @@ function showBattleResultOverlay(hasWon) {
 }
 
 // Función que dibuja el modal completo de recompensas y subidas de nivel
-function showPostBattleModal(hasWon, coins, tickets, levelUps) {
-    const existing = document.getElementById('post-battle-modal');
-    if (existing) existing.remove();
-
-    let levelUpsHtml = levelUps.length > 0 
-        ? levelUps.map(l => `<p style="color:#34d399; margin:4px 0;">🎉 ¡<b>${l.name}</b> subió al <b>Nv. ${l.newLevel}</b>!</p>`).join('')
-        : '<p style="color:#aaa; margin:4px 0;">Ningún Pokémon subió de nivel esta vez.</p>';
-
-    const modal = document.createElement('div');
-    modal.id = 'post-battle-modal';
-    modal.className = 'post-battle-backdrop';
-    modal.innerHTML = `
-        <div class="post-battle-card ${hasWon ? 'win' : 'lose'}">
-            <h2>${hasWon ? '¡Victoria Épica!' : 'Derrota...'}</h2>
-            <p class="subtitle">${hasWon ? 'Has dominado el combate con estrategia' : 'Entrena más duro y mejora tu equipo'}</p>
-            
-            ${hasWon ? `
-                <div class="rewards-box">
-                    <h4>🎁 Recompensas Obtenidas:</h4>
-                    <p>🪙 +${coins} Monedas</p>${tickets > 0 ? `<p>🎟️ +${tickets} Ticket(s)</p>` : ''}
-                    <p>⭐ +50 XP para todo el equipo</p>
-                </div>
-                <div class="levelup-box">
-                    <h4>📈 Progresión:</h4>
-                    ${levelUpsHtml}
-                </div>
-            ` : ''}
-
-            <button class="btn-close-post-battle" onclick="closePostBattleAndReturn('${hasWon}')">Continuar</button>
-        </div>
-    `;
-
-    document.body.appendChild(modal);
-}
 
 window.closePostBattleAndReturn = function(hasWon) {
     const modal = document.getElementById('post-battle-modal');
@@ -891,9 +814,30 @@ function showPostBattleModal(hasWon, coins, tickets, levelUps) {
     const existing = document.getElementById('post-battle-modal');
     if (existing) existing.remove();
 
-    let levelUpsHtml = levelUps.length > 0 
-        ? levelUps.map(l => `<p style="color:#34d399; margin:4px 0;">🎉 ¡<b>${l.name}</b> subió al <b>Nv. ${l.newLevel}</b>!</p>`).join('')
+    levelUps = levelUps || [];
+    const subidas = levelUps.filter(l => l.leveledUp);
+
+    const subidasHtml = subidas.length > 0
+        ? subidas.map(l => `<p style="color:#34d399; margin:6px 0; font-size:15px;">🎉 ¡<b>${l.name}</b> ha subido al <b>Nv. ${l.newLevel}</b>!</p>`).join('')
         : '<p style="color:#aaa; margin:4px 0;">Ningún Pokémon subió de nivel esta vez.</p>';
+
+    const barrasHtml = levelUps.map(l => {
+        const pct = Math.min(100, Math.max(0, Math.floor((l.xp / l.xpNeeded) * 100)));
+        return `
+            <div style="display:flex; align-items:center; gap:10px; margin:8px 0; text-align:left;">
+                <img src="${l.sprite}" alt="${l.name}" width="40" height="40" style="object-fit:contain;">
+                <div style="flex:1;">
+                    <div style="display:flex; justify-content:space-between; font-size:12px; color:#cbd5e1;">
+                        <span><b>${l.name}</b> ${l.leveledUp ? `Nv. ${l.oldLevel} → <b style="color:#34d399;">${l.newLevel} ⬆</b>` : `Nv. ${l.newLevel}`}</span>
+                        <span>+${l.gained} XP</span>
+                    </div>
+                    <div style="background:#0f172a; border-radius:4px; height:8px; overflow:hidden; border:1px solid #334155; margin-top:3px;">
+                        <div style="width:${pct}%; height:100%; background:linear-gradient(90deg,#38bdf8,#0284c7);"></div>
+                    </div>
+                    <div style="font-size:10px; color:#94a3b8; text-align:right;">${l.xp} / ${l.xpNeeded} XP</div>
+                </div>
+            </div>`;
+    }).join('');
 
     const modal = document.createElement('div');
     modal.id = 'post-battle-modal';
@@ -902,7 +846,7 @@ function showPostBattleModal(hasWon, coins, tickets, levelUps) {
         <div class="post-battle-card ${hasWon ? 'win' : 'lose'}">
             <h2>${hasWon ? '¡Victoria Épica!' : 'Derrota...'}</h2>
             <p class="subtitle">${hasWon ? 'Has dominado el combate con estrategia' : 'Entrena más duro y mejora tu equipo'}</p>
-            
+
             ${hasWon ? `
                 <div class="rewards-box">
                     <h4>🎁 Recompensas Obtenidas:</h4>
@@ -911,7 +855,8 @@ function showPostBattleModal(hasWon, coins, tickets, levelUps) {
                 </div>
                 <div class="levelup-box">
                     <h4>📈 Progresión:</h4>
-                    ${levelUpsHtml}
+                    ${subidasHtml}
+                    <div style="margin-top:8px; max-height:220px; overflow-y:auto;">${barrasHtml}</div>
                 </div>
             ` : ''}
 
@@ -1011,12 +956,6 @@ function renderCombatArena() {
     const playerFilter = getStatusFilterStyle(player.status);
     const enemyFilter = getStatusFilterStyle(enemy.status);
 
-    // Barra de experiencia del Pokémon del jugador
-    const playerLevel = Number(player.level) || 1;
-    const playerXp = Number(player.xp) || 0;
-    const playerXpNeeded = playerLevel * 100;
-    const playerXpPct = Math.min(100, Math.max(0, Math.floor((playerXp / playerXpNeeded) * 100)));
-
     container.innerHTML = `
         <div class="combat-arena">
             <!-- POKÉMON JUGADOR -->
@@ -1032,13 +971,6 @@ function renderCombatArena() {
                 
                 <div class="energy-bar-container">
                     <div class="energy-bar-fill" id="player-energy-fill" style="width: ${(player.energy / player.maxEnergy) * 100}%"></div>
-                </div>
-
-                <div class="xp-bar-wrapper" style="margin: 4px 0;">
-                    <div style="background: #0f172a; border-radius: 4px; height: 8px; width: 100%; overflow: hidden; border: 1px solid #334155;">
-                        <div id="player-xp-fill" style="width: ${playerXpPct}%; background: linear-gradient(90deg, #38bdf8, #0284c7); height: 100%;"></div>
-                    </div>
-                    <div id="player-xp-text" style="font-size: 11px; color: #94a3b8; text-align: right;">XP ${playerXp} / ${playerXpNeeded}</div>
                 </div>
 
                 <div class="sprite-box">
