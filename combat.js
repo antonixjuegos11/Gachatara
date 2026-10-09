@@ -604,23 +604,12 @@ function finishBattle(hasPlayerWon) {
     CombatState.isBattleOver = true;
     CombatState.turn = 'none';
 
-    // Llamamos a la animación en pantalla completa
-    showBattleResultOverlay(hasPlayerWon);
-
     if (hasPlayerWon) {
         addCombatLog(`🏆 ¡VICTORIA! Has ganado la batalla.`);
         
+        // Llamamos a nuestra función de XP por tramos
         if (typeof awardTeamExperience === 'function') {
             awardTeamExperience(CombatState.playerTeam);
-        } else if (typeof userInventory !== 'undefined') {
-            CombatState.playerTeam.forEach(pkmn => {
-                let inv = userInventory.find(i => Number(i.id) === Number(pkmn.id));
-                if (inv) {
-                    inv.level = Math.min(100, (inv.level || 1) + 1);
-                }
-            });
-            if (typeof saveStorage === 'function') saveStorage();
-            if (typeof renderInventory === 'function') renderInventory();
         }
 
         awardRewards();
@@ -630,14 +619,10 @@ function finishBattle(hasPlayerWon) {
 
     updateCombatUI();
 
-    // Damos un pequeño retraso antes de salir de la pantalla para que se luzca la animación
-    setTimeout(() => {
-        if (typeof CombatState.onBattleEndCallback === 'function') {
-            CombatState.onBattleEndCallback(hasPlayerWon, CombatState.mode);
-        }
-    }, 2500); // Se espera 2.5 segundos antes de cerrar el combate
+    if (typeof CombatState.onBattleEndCallback === 'function') {
+        CombatState.onBattleEndCallback(hasPlayerWon, CombatState.mode);
+    }
 }
-
 // NUEVA FUNCIÓN: Muestra el cartel flotante en pantalla
 function showBattleResultOverlay(hasWon) {
     const existingOverlay = document.getElementById('battle-result-overlay');
