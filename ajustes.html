@@ -140,6 +140,7 @@
             <p>Añade recursos a tu cuenta instantáneamente para probar tiradas en el Gacha.</p>
             <button class="btn-dev" onclick="addTickets(1000)">+1000 Tickets 🎟️</button>
             <button class="btn-dev" onclick="addCoins(5000)">+5000 Monedas 🪙</button>
+            <button class="btn-dev" onclick="addCandies(100)">+100 Caramelos Raros 🍬</button>
         </section>
 
         <!-- Sección: Gestión de Datos -->
@@ -151,6 +152,7 @@
     </main>
 
     <script src="game.js"></script>
+    <script src="backpack.js"></script>
     <script>
         // Funciones provisionales para añadir recursos fácilmente
         function addTickets(amount) {
@@ -167,6 +169,11 @@
             alert(`¡Se han añadido +${amount} Monedas Tara! Saldo actual: ${currencies.coins}`);
         }
 
+        function addCandies(amount) {
+            const total = addRareCandies(amount);
+            alert(`¡Se han añadido +${amount} Caramelos Raros! Tienes ${total} en la mochila.`);
+        }
+
         function resetGameData() {
             const confirmReset = confirm("¿Estás seguro de que deseas borrar todos tus Pokémon capturados, tu Pokédex y tus monedas? Esta acción es irreversible.");
             
@@ -175,6 +182,7 @@
                 localStorage.removeItem('pokemon_user_inventory');
                 localStorage.removeItem('pokemon_user_currencies');
                 localStorage.removeItem('gachatara_profile');
+                localStorage.removeItem('gachatara_backpack');
                 
                 alert("Los datos han sido borrados con éxito.");
                 window.location.href = "index.html";

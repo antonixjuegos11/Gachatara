@@ -446,6 +446,13 @@ function openPokemonModal(pokemonId) {
             <span style="font-weight: normal; font-size: 12px; opacity: .85;"> · 🎒 ${itemSlots} ranura(s)</span>
         </button>` : ''}
 
+        ${(typeof getItemCount === 'function' && getItemCount('consumables', 'rare_candy') > 0 && level < 100) ? `
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px; background: rgba(251,191,36,0.08); border: 1px solid rgba(251,191,36,0.4); border-radius: 8px; padding: 8px 12px;">
+            <span style="flex: 1; font-size: 13px;">🍬 Caramelos Raros: <strong>${getItemCount('consumables', 'rare_candy')}</strong></span>
+            <button onclick="useRareCandy(${pkmn.id}, 1)" style="background: #fbbf24; color: #0f172a; border: none; border-radius: 6px; padding: 6px 12px; font-weight: bold; cursor: pointer;">+1 Nv.</button>
+            <button onclick="useRareCandy(${pkmn.id}, 10)" style="background: #fbbf24; color: #0f172a; border: none; border-radius: 6px; padding: 6px 12px; font-weight: bold; cursor: pointer;">+10 Nv.</button>
+        </div>` : ''}
+
         <div class="modal-awakening-section" style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: 10px; text-align: center;">
             <div class="dupes-counter" style="margin-bottom: 10px; font-size: 14px; color: #dfe4ea;">
                 📦 Copias totales: <strong>${totalCopies}</strong> (Necesitas ${nextCost} duplicados adicionales)
@@ -566,6 +573,10 @@ function switchTab(tabId, event) {
     if (tabId !== 'invocacion') {
         const resultsContainer = document.getElementById('gacha-results');
         if (resultsContainer) resultsContainer.innerHTML = '';
+    }
+
+    if (tabId === 'mochila' && typeof renderBackpack === 'function') {
+        renderBackpack();
     }
 
     if (tabId === 'dex') {

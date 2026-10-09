@@ -40,6 +40,7 @@
             <button class="nav-tab active" onclick="switchTab('lobby', event)">Lobby</button>
             <button class="nav-tab" onclick="switchTab('combate', event)">Combate</button>
             <button class="nav-tab" onclick="switchTab('equipo', event)">Equipo</button>
+            <button class="nav-tab" onclick="switchTab('mochila', event)">Mochila</button>
             <button class="nav-tab" onclick="switchTab('invocacion', event)">Invocación</button>
             <button class="nav-tab" onclick="switchTab('dex', event)">Dex</button>
             <a href="ajustes.html" class="nav-tab nav-link">Ajustes</a>
@@ -131,6 +132,16 @@
         </div>
     </main>
 
+    <!-- ZONA DE MOCHILA -->
+    <main id="tab-mochila" class="lobby-container tab-content">
+        <div class="dex-frame">
+            <div class="equipo-header">
+                <h2>🎒 MOCHILA</h2>
+            </div>
+            <div id="backpack-content"></div>
+        </div>
+    </main>
+
     <!-- ZONA DE INVOCACIÓN (GACHA) -->
     <main id="tab-invocacion" class="lobby-container tab-content">
         <div class="gacha-frame">
@@ -185,7 +196,8 @@
     <script src="gacha.js"></script>
     <script src="game.js"></script>
     <script src="skilltree.js"></script>
-    <script src="profile.js"></script> <!-- <--- ¡AQUÍ ESTABA EL FALTANTE! -->
+    <script src="profile.js"></script>
+    <script src="backpack.js"></script> <!-- <--- ¡AQUÍ ESTABA EL FALTANTE! -->
     <script src="combat.js"></script>
     <script src="modes.js"></script>
 </body>
