@@ -424,6 +424,7 @@ function endTurn() {
 
         const eTurnMsg = triggerAbility('onTurnEnd', CombatState.enemyTeam[CombatState.activeEnemyIndex], CombatState.playerTeam[CombatState.activePlayerIndex]);
     }
+}
  // combat.js - Motor de Combate con Estados Traducidos y Efectos Visuales
 
 // =========================================
