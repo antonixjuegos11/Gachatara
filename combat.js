@@ -423,6 +423,7 @@ function endTurn() {
         if (pTurnMsg) addCombatLog(pTurnMsg);
 
         const eTurnMsg = triggerAbility('onTurnEnd', CombatState.enemyTeam[CombatState.activeEnemyIndex], CombatState.playerTeam[CombatState.activePlayerIndex]);
+    }
  // combat.js - Motor de Combate con Estados Traducidos y Efectos Visuales
 
 // =========================================
@@ -1267,3 +1268,4 @@ function showFloatingDamage(cardId, amount, isCrit = false, message = '') {
     card.appendChild(popup);
 
     setTimeout(() => popup.remove(), 1000);
+}
