@@ -1545,3 +1545,83 @@ a.nav-link {
     from { transform: scale(0.5); opacity: 0; }
     to { transform: scale(1); opacity: 1; }
 }
+.post-battle-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+    animation: fadeInOverlay 0.3s ease;
+}
+
+.post-battle-card {
+    background: #1e293b;
+    border: 2px solid #334155;
+    width: 90%;
+    max-width: 420px;
+    padding: 25px;
+    border-radius: 16px;
+    text-align: center;
+    color: #f8fafc;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+    animation: popInResult 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.post-battle-card.win { border-color: #10b981; }
+.post-battle-card.lose { border-color: #ef4444; }
+
+.post-battle-card h2 {
+    margin: 0 0 5px 0;
+    font-size: 28px;
+    text-transform: uppercase;
+}
+
+.post-battle-card .subtitle {
+    color: #94a3b8;
+    font-size: 14px;
+    margin-bottom: 20px;
+}
+
+.rewards-box, .levelup-box {
+    background: #0f172a;
+    padding: 12px;
+    border-radius: 10px;
+    margin-bottom: 15px;
+    text-align: left;
+    font-size: 14px;
+}
+
+.rewards-box h4, .levelup-box h4 {
+    margin: 0 0 8px 0;
+    font-size: 13px;
+    color: #38bdf8;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.rewards-box p {
+    margin: 4px 0;
+    color: #e2e8f0;
+}
+
+.btn-close-post-battle {
+    background: #3b82f6;
+    color: white;
+    border: none;
+    padding: 10px 24px;
+    font-size: 16px;
+    font-weight: bold;
+    border-radius: 8px;
+    cursor: pointer;
+    width: 100%;
+    transition: background 0.2s;
+}
+
+.btn-close-post-battle:hover {
+    background: #2563eb;
+}
