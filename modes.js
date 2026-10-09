@@ -111,41 +111,8 @@ function startStrategyBattle() {
     }
 }
 
-// Sistema de subida de nivel persistente
+// La XP y las subidas de nivel ya se calculan, guardan y muestran en finishBattle() (combat.js).
+// Aquí solo refrescamos la interfaz para no dar la experiencia dos veces.
 function awardTeamExperience(winningTeam) {
-    if (!winningTeam || winningTeam.length === 0 || typeof userInventory === 'undefined') return;
-
-    const xpGained = 50; // Experiencia fija que se gana por victoria (puedes ajustarla)
-
-    winningTeam.forEach(pkmn => {
-        let inventoryPkmn = userInventory.find(item => Number(item.id) === Number(pkmn.id));
-        if (inventoryPkmn) {
-            inventoryPkmn.level = inventoryPkmn.level || 1;
-            inventoryPkmn.xp = inventoryPkmn.xp || 0;
-
-            if (inventoryPkmn.level < 100) {
-                inventoryPkmn.xp += xpGained;
-                
-                // Fórmula de experiencia necesaria por nivel (ej: Nivel 1 necesita 100 XP, Nivel 2 necesita 200 XP...)
-                let xpNeeded = inventoryPkmn.level * 100;
-
-                // Bucle por si gana tanta XP en un combate que sube varios niveles de golpe
-                while (inventoryPkmn.xp >= xpNeeded && inventoryPkmn.level < 100) {
-                    inventoryPkmn.xp -= xpNeeded;
-                    inventoryPkmn.level += 1;
-                    xpNeeded = inventoryPkmn.level * 100;
-                    console.log(`🎉 ¡${inventoryPkmn.name} ha subido al nivel ${inventoryPkmn.level}!`);
-                }
-            }
-        }
-    });
-
-    if (typeof saveStorage === 'function') {
-        saveStorage();
-    }
-    if (typeof renderInventory === 'function') {
-        renderInventory();
-    }
-    
-    console.log("¡Experiencia de combate distribuida correctamente!");
+    if (typeof renderInventory === 'function') renderInventory();
 }

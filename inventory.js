@@ -1,6 +1,23 @@
-// Estado global del inventario cargado de localStorage
-const USER_INVENTORY = JSON.parse(localStorage.getItem('gachatara_inventory')) || [];
-const UNLOCKED_IDS = new Set(JSON.parse(localStorage.getItem('gachatara_unlocked_ids')) || []);
+// Inventario UNIFICADO: se comparte el mismo array que usa game.js / combat.js (userInventory)
+// para que las tiradas, el combate y la XP trabajen sobre los mismos datos.
+const USER_INVENTORY = userInventory;
+const UNLOCKED_IDS = playerCollection;
+
+// Migración única: recupera datos guardados con la clave antigua 'gachatara_inventory'
+(function migrateOldInventory() {
+    try {
+        const old = JSON.parse(localStorage.getItem('gachatara_inventory') || '[]');
+        if (Array.isArray(old) && old.length > 0) {
+            old.forEach(o => {
+                if (!userInventory.some(i => Number(i.id) === Number(o.id))) userInventory.push(o);
+                playerCollection.add(Number(o.id));
+            });
+            saveStorage();
+        }
+        localStorage.removeItem('gachatara_inventory');
+        localStorage.removeItem('gachatara_unlocked_ids');
+    } catch (e) { /* sin datos antiguos */ }
+})();
 
 // Variable global para rastrear qué índice del inventario se está inspeccionando en el modal
 let currentInspectedIndex = null;
@@ -18,14 +35,13 @@ function getStatMultiplierForStars(stars) {
 }
 
 function saveInventory() {
-    localStorage.setItem('gachatara_inventory', JSON.stringify(USER_INVENTORY));
-    localStorage.setItem('gachatara_unlocked_ids', JSON.stringify(Array.from(UNLOCKED_IDS)));
+    saveStorage();
 }
 
 function addPokemonToInventory(pokemon) {
     if (!pokemon || !pokemon.id) return;
 
-    UNLOCKED_IDS.add(pokemon.id);
+    UNLOCKED_IDS.add(Number(pokemon.id));
 
     const existing = USER_INVENTORY.find(item => Number(item.id) === Number(pokemon.id));
     
