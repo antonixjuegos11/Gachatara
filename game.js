@@ -229,6 +229,40 @@ function togglePokemonInTeam(pkmn) {
 }
 
 // Renderizar Inventario ordenado y agrupado
+// Normaliza texto para buscar sin tildes ni mayúsculas
+function normalizeSearchText(text) {
+    return String(text || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+}
+
+// Filtro del buscador del inventario: nombre, número de Pokédex o tipo (+ filtro de rareza)
+function matchesInventoryFilter(pkmn) {
+    const searchElem = document.getElementById('inventory-search');
+    const rarityElem = document.getElementById('inventory-rarity-filter');
+    const query = normalizeSearchText(searchElem ? searchElem.value : '');
+    const rarity = rarityElem ? rarityElem.value : '';
+
+    if (rarity) {
+        const pr = normalizeSearchText(pkmn.rarity || 'comun');
+        if (pr !== rarity) return false;
+    }
+    if (!query) return true;
+
+    const name = normalizeSearchText(pkmn.name);
+    const idText = String(pkmn.id);
+    const types = normalizeSearchText((pkmn.types || [pkmn.type || '']).join(' '));
+    const cleanQuery = query.replace('#', '');
+
+    return name.includes(query) || types.includes(query) || (/^\d+$/.test(cleanQuery) && idText.startsWith(cleanQuery.replace(/^0+/, '')));
+}
+
+function clearInventorySearch() {
+    const s = document.getElementById('inventory-search');
+    const r = document.getElementById('inventory-rarity-filter');
+    if (s) s.value = '';
+    if (r) r.value = '';
+    renderInventory();
+}
+
 function renderInventory() {
     const container = document.getElementById('inventory-grid') || document.getElementById('team-grid');
     const counterElem = document.getElementById('total-capturados');
@@ -246,8 +280,20 @@ function renderInventory() {
         return;
     }
 
-    const sortedInventory = [...userInventory].sort((a, b) => Number(a.id) - Number(b.id));
     const currentTeam = currentTeamMode === 'strategy' ? activeTeamStrategy : activeTeamFast;
+    const sortedInventory = [...userInventory]
+        .sort((a, b) => Number(a.id) - Number(b.id))
+        .filter(matchesInventoryFilter);
+
+    const resultsElem = document.getElementById('inventory-results-count');
+    if (resultsElem) {
+        resultsElem.textContent = `Mostrando ${sortedInventory.length} de ${userInventory.length}`;
+    }
+
+    if (sortedInventory.length === 0) {
+        container.innerHTML = '<p style="color: #94a3b8; grid-column: 1/-1; text-align: center; padding: 20px;">Ningún Pokémon coincide con tu búsqueda.</p>';
+        return;
+    }
 
     sortedInventory.forEach(pkmn => {
         const rawRarity = pkmn.rarity || 'comun';
@@ -270,14 +316,25 @@ function renderInventory() {
         const countBadge = totalCopies > 1 ? `<span class="card-count-badge">x${totalCopies}</span>` : '';
         const teamBadge = isInTeam ? `<span style="position: absolute; top: 5px; right: 5px; background: #2ed573; color: #000; font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 4px;">EN EQUIPO</span>` : '';
 
+        const cardLevel = Number(pkmn.level) || 1;
+        const cardXp = Number(pkmn.xp) || 0;
+        const cardXpPct = Math.min(100, Math.max(0, Math.floor((cardXp / (cardLevel * 100)) * 100)));
+        const treeBadge = (typeof getPendingPerkCount === 'function' && getPendingPerkCount(pkmn) > 0)
+            ? '<div title="Nodo del árbol de habilidades disponible" style="position: absolute; bottom: 5px; left: 5px; font-size: 13px;">🌳</div>' : '';
+
         card.innerHTML = `
             ${countBadge}
             ${teamBadge}
+            ${treeBadge}
             ${pkmn.stars > 0 ? `<div class="card-stars-badge" style="position: absolute; top: 5px; left: 5px; color: #f1c40f; font-size: 11px; text-shadow: 0 1px 2px #000;">${starsDisplay}</div>` : ''}
             <div class="card-id">#${String(pkmn.id).padStart(4, '0')}</div>
             <img src="${pkmn.sprite}" alt="${pkmn.name}">
             <div class="card-name">${pkmn.name}</div>
             <div class="card-rarity">${rawRarity.toUpperCase()}</div>
+            <div style="font-size: 11px; color: #aaa; margin-top: 2px;">Nv. ${cardLevel}</div>
+            <div style="background: #0f172a; border-radius: 4px; height: 6px; width: 90%; margin: 3px auto 0 auto; overflow: hidden; border: 1px solid #334155;">
+                <div style="width: ${cardXpPct}%; background: #38bdf8; height: 100%;"></div>
+            </div>
             <div style="display: flex; gap: 5px; margin-top: 5px;">
                 <button onclick="event.stopPropagation(); togglePokemonInTeam(${JSON.stringify(pkmn).replace(/"/g, '&quot;')})" style="flex: 1; background: ${isInTeam ? '#eb4d4b' : '#2ed573'}; color: white; border: none; padding: 4px; font-size: 10px; font-weight: bold; border-radius: 4px; cursor: pointer;">
                     ${isInTeam ? 'Quitar' : 'Añadir'}
@@ -331,12 +388,18 @@ function openPokemonModal(pokemonId) {
 
     const mult = getStatMultiplierForStars(pkmn.stars);
     const base = pkmn.baseStats || { hp: 45, attack: 49, defense: 49, spAtk: 65, spDef: 65, speed: 45 };
-    const level = pkmn.level || 10;
+    const level = Number(pkmn.level) || 1;
+
+    // Mejoras del árbol de habilidades
+    const perkInfo = typeof getPerkBonuses === 'function' ? getPerkBonuses(pkmn) : null;
+    const pm = perkInfo ? perkInfo.mult : { hp: 1, attack: 1, defense: 1, speed: 1 };
+    const pendingPerks = typeof getPendingPerkCount === 'function' ? getPendingPerkCount(pkmn) : 0;
+    const itemSlots = perkInfo ? perkInfo.itemSlots : 0;
     
-    const calcHp = Math.floor((Math.floor(((2 * base.hp) * level) / 100) + level + 10) * mult);
-    const calcAtk = Math.floor((Math.floor(((2 * base.attack) * level) / 100) + 5) * mult);
-    const calcDef = Math.floor((Math.floor(((2 * base.defense) * level) / 100) + 5) * mult);
-    const calcSpd = Math.floor((Math.floor(((2 * base.speed) * level) / 100) + 5) * mult);
+    const calcHp = Math.floor((Math.floor(((2 * base.hp) * level) / 100) + level + 10) * mult * pm.hp);
+    const calcAtk = Math.floor((Math.floor(((2 * base.attack) * level) / 100) + 5) * mult * pm.attack);
+    const calcDef = Math.floor((Math.floor(((2 * base.defense) * level) / 100) + 5) * mult * pm.defense);
+    const calcSpd = Math.floor((Math.floor(((2 * base.speed) * level) / 100) + 5) * mult * pm.speed);
 
     const currentXp = Number(pkmn.xp) || 0;
     const xpNeeded = level * 100;
@@ -376,6 +439,12 @@ function openPokemonModal(pokemonId) {
                 </div>
             </div>
         </div>
+
+        ${typeof openSkillTree === 'function' ? `
+        <button id="st-open-btn" onclick="openSkillTree(${pkmn.id})" style="width: 100%; margin-bottom: 12px; background: linear-gradient(135deg, #0ea5e9, #6366f1); color: white; border: none; padding: 10px 20px; font-size: 14px; font-weight: bold; border-radius: 8px; cursor: pointer;">
+            🌳 Árbol de Habilidades ${pendingPerks > 0 ? `<span style="background: #fbbf24; color: #0f172a; border-radius: 10px; padding: 1px 8px; margin-left: 6px;">${pendingPerks} nuevo(s)</span>` : ''}
+            <span style="font-weight: normal; font-size: 12px; opacity: .85;"> · 🎒 ${itemSlots} ranura(s)</span>
+        </button>` : ''}
 
         <div class="modal-awakening-section" style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: 10px; text-align: center;">
             <div class="dupes-counter" style="margin-bottom: 10px; font-size: 14px; color: #dfe4ea;">

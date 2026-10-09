@@ -213,8 +213,7 @@ function refreshAfterPerkChange(p) {
     // Refresca el menú del Pokémon si está abierto (estadísticas nuevas) y el inventario
     const pm = document.getElementById('pokemon-modal');
     if (pm && pm.style.display === 'flex' && typeof openPokemonModal === 'function') {
-        const idx = userInventory.findIndex(x => Number(x.id) === Number(p.id));
-        if (idx !== -1) openPokemonModal(idx);
+        openPokemonModal(p.id);
     }
     if (typeof renderInventory === 'function') renderInventory();
 }

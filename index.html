@@ -108,6 +108,23 @@
 
             <p style="text-align: center; color: #00f2fe; font-size: 14px; margin-bottom: 10px;">💡 Haz clic en cualquier Pokémon del inventario para añadirlo o quitarlo del equipo activo.</p>
 
+            <!-- Buscador del inventario -->
+            <div class="inventory-filters" style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: center; margin-bottom: 15px;">
+                <input id="inventory-search" type="text" placeholder="🔍 Buscar por nombre, nº o tipo..." oninput="renderInventory()" autocomplete="off"
+                    style="flex: 1 1 260px; max-width: 380px; background: #1e293b; border: 1px solid #334155; color: #fff; border-radius: 8px; padding: 9px 12px; font-size: 14px;">
+                <select id="inventory-rarity-filter" onchange="renderInventory()"
+                    style="background: #1e293b; border: 1px solid #334155; color: #fff; border-radius: 8px; padding: 9px 10px; font-size: 14px;">
+                    <option value="">Todas las rarezas</option>
+                    <option value="comun">Común</option>
+                    <option value="raro">Raro</option>
+                    <option value="epico">Épico</option>
+                    <option value="legendario">Legendario</option>
+                    <option value="secreto">Secreto / Mega</option>
+                </select>
+                <button class="banner-btn" onclick="clearInventorySearch()">Limpiar</button>
+                <span id="inventory-results-count" style="font-size: 12px; color: #94a3b8;"></span>
+            </div>
+
             <div id="inventory-grid" class="dex-grid">
                 <!-- Las cartas guardadas se cargarán dinámicamente aquí -->
             </div>
@@ -167,7 +184,6 @@
     <script src="habilidades.js"></script>
     <script src="gacha.js"></script>
     <script src="game.js"></script>
-    <script src="inventory.js"></script>
     <script src="skilltree.js"></script>
     <script src="profile.js"></script> <!-- <--- ¡AQUÍ ESTABA EL FALTANTE! -->
     <script src="combat.js"></script>
