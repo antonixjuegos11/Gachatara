@@ -195,7 +195,7 @@ function prepareCombatUnit(pkmn, level = 1) {
 
 function startBattle(playerUnits, enemyUnits, mode = 'quick', onEndCallback = null) {
     let resolvedTeam = playerUnits;
-    if (!resolvedTeam || resolvedTeam.length <= 1) {
+    if (!resolvedTeam || resolvedTeam.length === 0) {
         const activeStrategyKey = 'pokemon_active_team_strategy';
         const activeFastKey = 'pokemon_active_team_fast';
         
@@ -222,7 +222,16 @@ function startBattle(playerUnits, enemyUnits, mode = 'quick', onEndCallback = nu
         resolvedTeam = playerUnits;
     }
 
-    CombatState.playerTeam = resolvedTeam.map(p => prepareCombatUnit(p, p.level || 1));
+    // Solo combaten Pokémon con vida (los debilitados nunca salen) y hace falta al menos uno
+    CombatState.playerTeam = (resolvedTeam || [])
+        .map(p => prepareCombatUnit(p, p.level || 1))
+        .filter(u => u && u.currentHp > 0);
+
+    if (CombatState.playerTeam.length === 0) {
+        alert("¡Necesitas al menos un Pokémon en tu equipo para poder luchar! Ve a la pestaña 'Equipo'.");
+        return;
+    }
+
     CombatState.enemyTeam = enemyUnits.map(p => prepareCombatUnit(p, p.level || 1));
     CombatState.activePlayerIndex = 0;
     CombatState.activeEnemyIndex = 0;
@@ -291,6 +300,9 @@ window.executePlayerMove = function(moveIndex) {
     const defender = CombatState.enemyTeam[CombatState.activeEnemyIndex];
 
     if (!attacker || !defender) return;
+
+    // Si alguien ya está debilitado (su relevo está pendiente) no se puede volver a atacar
+    if (attacker.currentHp <= 0 || defender.currentHp <= 0) return;
 
     if (processStatusBeforeTurn(attacker)) {
         updateCombatUI();
@@ -598,7 +610,9 @@ window.executeTeamSwitch = function(newIndex) {
 // =========================================
 
 function handlePlayerFaint() {
+    if (CombatState.isBattleOver) return;
     const currentPkmn = CombatState.playerTeam[CombatState.activePlayerIndex];
+    if (!currentPkmn || currentPkmn.currentHp > 0) return;
     addCombatLog(`💀 ¡Tu ${currentPkmn.name} se ha debilitado!`);
     
     currentPkmn.currentHp = 0;
@@ -629,11 +643,16 @@ function handlePlayerFaint() {
 }
 
 function handleEnemyFaint() {
+    if (CombatState.isBattleOver) return;
     const currentEnemy = CombatState.enemyTeam[CombatState.activeEnemyIndex];
+    // Solo se procesa si el rival activo está realmente debilitado (evita matar al relevo por una llamada repetida)
+    if (!currentEnemy || currentEnemy.currentHp > 0) return;
     addCombatLog(`💀 ¡El ${currentEnemy.name} enemigo ha sido derrotado!`);
     
     currentEnemy.currentHp = 0;
-    CombatState.activeEnemyIndex++;
+    // Siguiente rival que siga vivo (no el índice siguiente a ciegas, por si el rival hizo cambios)
+    const nextEnemyIdx = CombatState.enemyTeam.findIndex(e => e.currentHp > 0);
+    CombatState.activeEnemyIndex = nextEnemyIdx === -1 ? CombatState.enemyTeam.length : nextEnemyIdx;
 
     if (CombatState.activeEnemyIndex >= CombatState.enemyTeam.length) {
         finishBattle(true);
@@ -694,6 +713,7 @@ function applyBattleXp(team, xpGained) {
 }
 
 function finishBattle(hasPlayerWon) {
+    if (CombatState.isBattleOver) return; // evita repartir recompensas/XP dos veces
     CombatState.isBattleOver = true;
     CombatState.turn = 'none';
 
@@ -956,6 +976,12 @@ function renderCombatArena() {
     const playerFilter = getStatusFilterStyle(player.status);
     const enemyFilter = getStatusFilterStyle(enemy.status);
 
+    // Barra de experiencia del Pokémon del jugador
+    const playerLevel = Number(player.level) || 1;
+    const playerXp = Number(player.xp) || 0;
+    const playerXpNeeded = playerLevel * 100;
+    const playerXpPct = Math.min(100, Math.max(0, Math.floor((playerXp / playerXpNeeded) * 100)));
+
     container.innerHTML = `
         <div class="combat-arena">
             <!-- POKÉMON JUGADOR -->
@@ -971,6 +997,13 @@ function renderCombatArena() {
                 
                 <div class="energy-bar-container">
                     <div class="energy-bar-fill" id="player-energy-fill" style="width: ${(player.energy / player.maxEnergy) * 100}%"></div>
+                </div>
+
+                <div class="xp-bar-wrapper" style="margin: 4px 0;">
+                    <div style="background: #0f172a; border-radius: 4px; height: 8px; width: 100%; overflow: hidden; border: 1px solid #334155;">
+                        <div id="player-xp-fill" style="width: ${playerXpPct}%; background: linear-gradient(90deg, #38bdf8, #0284c7); height: 100%;"></div>
+                    </div>
+                    <div id="player-xp-text" style="font-size: 11px; color: #94a3b8; text-align: right;">XP ${playerXp} / ${playerXpNeeded}</div>
                 </div>
 
                 <div class="sprite-box">
