@@ -1486,3 +1486,62 @@ a.nav-link {
 }
 .badge-tag.active { background: #28a745; color: white; }
 .badge-tag.fainted { background: #dc3545; color: white; }
+
+/* Estilos para el cartel de fin de combate */
+.battle-result-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.75);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    animation: fadeInOverlay 0.3s ease-in-out;
+}
+
+.battle-result-content {
+    text-align: center;
+    padding: 30px 60px;
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    animation: popInResult 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.battle-result-overlay.victory .battle-result-content {
+    background: linear-gradient(135deg, #10b981, #059669);
+    border: 3px solid #34d399;
+    color: #ffffff;
+}
+
+.battle-result-overlay.defeat .battle-result-content {
+    background: linear-gradient(135deg, #ef4444, #b91c1c);
+    border: 3px solid #f87171;
+    color: #ffffff;
+}
+
+.battle-result-content h2 {
+    font-size: 42px;
+    margin: 0 0 10px 0;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    text-shadow: 0 3px 6px rgba(0,0,0,0.3);
+}
+
+.battle-result-content p {
+    font-size: 18px;
+    margin: 0;
+    opacity: 0.9;
+}
+
+@keyframes fadeInOverlay {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes popInResult {
+    from { transform: scale(0.5); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}

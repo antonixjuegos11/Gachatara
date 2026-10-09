@@ -604,10 +604,12 @@ function finishBattle(hasPlayerWon) {
     CombatState.isBattleOver = true;
     CombatState.turn = 'none';
 
+    // Llamamos a la animación en pantalla completa
+    showBattleResultOverlay(hasPlayerWon);
+
     if (hasPlayerWon) {
         addCombatLog(`🏆 ¡VICTORIA! Has ganado la batalla.`);
         
-        // Aplicar experiencia ganada a todo el equipo participante de forma persistente
         if (typeof awardTeamExperience === 'function') {
             awardTeamExperience(CombatState.playerTeam);
         } else if (typeof userInventory !== 'undefined') {
@@ -628,9 +630,36 @@ function finishBattle(hasPlayerWon) {
 
     updateCombatUI();
 
-    if (typeof CombatState.onBattleEndCallback === 'function') {
-        CombatState.onBattleEndCallback(hasPlayerWon, CombatState.mode);
-    }
+    // Damos un pequeño retraso antes de salir de la pantalla para que se luzca la animación
+    setTimeout(() => {
+        if (typeof CombatState.onBattleEndCallback === 'function') {
+            CombatState.onBattleEndCallback(hasPlayerWon, CombatState.mode);
+        }
+    }, 2500); // Se espera 2.5 segundos antes de cerrar el combate
+}
+
+// NUEVA FUNCIÓN: Muestra el cartel flotante en pantalla
+function showBattleResultOverlay(hasWon) {
+    const existingOverlay = document.getElementById('battle-result-overlay');
+    if (existingOverlay) existingOverlay.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'battle-result-overlay';
+    overlay.className = `battle-result-overlay ${hasWon ? 'victory' : 'defeat'}`;
+    
+    overlay.innerHTML = `
+        <div class="battle-result-content">
+            <h2>${hasWon ? '¡VICTORIA!' : '¡DERROTA!'}</h2>
+            <p>${hasWon ? 'Has superado el combate con éxito' : 'Tu equipo se ha quedado sin fuerzas'}</p>
+        </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    // Lo eliminamos automáticamente al cabo de 2.5 segundos
+    setTimeout(() => {
+        if (overlay) overlay.remove();
+    }, 2500);
 }
 
 function awardRewards() {
