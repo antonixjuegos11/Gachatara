@@ -110,6 +110,7 @@ function renderInventory() {
         card.style.cursor = 'pointer';
         card.innerHTML = `
             <div class="dup-badge">x${item.count}</div>
+            ${(typeof getPendingPerkCount === 'function' && getPendingPerkCount(item) > 0) ? '<div title="Nodo de árbol disponible" style="position:absolute; bottom:5px; left:5px; font-size:13px;">🌳</div>' : ''}
             <div class="card-stars-badge" style="position: absolute; top: 5px; left: 5px; color: #f1c40f; font-size: 11px;">${starsDisplay}</div>
             <div class="card-id">#${String(item.id).padStart(4, '0')}</div>
             <img src="${item.sprite}" alt="${item.name}" loading="lazy">
@@ -161,13 +162,16 @@ function openPokemonModal(index) {
     const starsDisplay = '★'.repeat(pkmn.stars) + '☆'.repeat(7 - pkmn.stars);
 
     const mult = getStatMultiplierForStars(pkmn.stars);
+    const pm = typeof getPerkBonuses === 'function' ? getPerkBonuses(pkmn).mult : { hp: 1, attack: 1, defense: 1, speed: 1 };
+    const pendingPerks = typeof getPendingPerkCount === 'function' ? getPendingPerkCount(pkmn) : 0;
+    const itemSlots = typeof getPerkBonuses === 'function' ? getPerkBonuses(pkmn).itemSlots : 0;
     const base = pkmn.baseStats || { hp: 45, attack: 49, defense: 49, speed: 45 };
     const level = pkmn.level;
     
-    const calcHp = Math.floor((Math.floor(((2 * base.hp) * level) / 100) + level + 10) * mult);
-    const calcAtk = Math.floor((Math.floor(((2 * base.attack) * level) / 100) + 5) * mult);
-    const calcDef = Math.floor((Math.floor(((2 * base.defense) * level) / 100) + 5) * mult);
-    const calcSpd = Math.floor((Math.floor(((2 * base.speed) * level) / 100) + 5) * mult);
+    const calcHp = Math.floor((Math.floor(((2 * base.hp) * level) / 100) + level + 10) * mult * pm.hp);
+    const calcAtk = Math.floor((Math.floor(((2 * base.attack) * level) / 100) + 5) * mult * pm.attack);
+    const calcDef = Math.floor((Math.floor(((2 * base.defense) * level) / 100) + 5) * mult * pm.defense);
+    const calcSpd = Math.floor((Math.floor(((2 * base.speed) * level) / 100) + 5) * mult * pm.speed);
 
     const currentXp = pkmn.xp;
     const xpNeeded = level * 100;
@@ -207,6 +211,12 @@ function openPokemonModal(index) {
                 </div>
             </div>
         </div>
+
+        ${typeof openSkillTree === 'function' ? `
+        <button onclick="openSkillTree(${pkmn.id})" style="width: 100%; margin-bottom: 12px; background: linear-gradient(135deg, #0ea5e9, #6366f1); color: white; border: none; padding: 10px 20px; font-size: 14px; font-weight: bold; border-radius: 8px; cursor: pointer;">
+            🌳 Árbol de Habilidades ${pendingPerks > 0 ? `<span style="background:#fbbf24; color:#0f172a; border-radius:10px; padding:1px 8px; margin-left:6px;">${pendingPerks} nuevo(s)</span>` : ''}
+            <span style="font-weight: normal; font-size: 12px; opacity: .85;"> · 🎒 ${itemSlots} ranura(s)</span>
+        </button>` : ''}
 
         <div class="modal-awakening-section" style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: 10px; text-align: center;">
             <div class="dupes-counter" style="margin-bottom: 10px; font-size: 14px; color: #dfe4ea;">

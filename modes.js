@@ -54,7 +54,7 @@ function getSyncedPlayerTeam(storageKey, maxSlots) {
         if (typeof userInventory !== 'undefined') {
             const realInvPkmn = userInventory.find(item => Number(item.id) === Number(p.id));
             if (!realInvPkmn) return null; // ya no está en el inventario
-            return { ...p, level: realInvPkmn.level || 1, xp: realInvPkmn.xp || 0, stars: realInvPkmn.stars || 0 };
+            return { ...p, level: realInvPkmn.level || 1, xp: realInvPkmn.xp || 0, stars: realInvPkmn.stars || 0, perks: realInvPkmn.perks || {} };
         }
         return p;
     }).filter(Boolean);

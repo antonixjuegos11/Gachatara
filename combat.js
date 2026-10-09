@@ -124,12 +124,16 @@ function prepareCombatUnit(pkmn, level = 1) {
 
     const starMultiplier = 1 + ((pkmn.stars || 0) * 0.10);
 
-    const maxHp = Math.floor(((((2 * base.hp) * currentLevel) / 100) + currentLevel + 10) * starMultiplier);
-    const attack = Math.floor(((((2 * base.attack) * currentLevel) / 100) + 5) * starMultiplier);
-    const defense = Math.floor(((((2 * base.defense) * currentLevel) / 100) + 5) * starMultiplier);
-    const spAtk = Math.floor(((((2 * base.spAtk) * currentLevel) / 100) + 5) * starMultiplier);
-    const spDef = Math.floor(((((2 * base.spDef) * currentLevel) / 100) + 5) * starMultiplier);
-    const speed = Math.floor(((((2 * base.speed) * currentLevel) / 100) + 5) * starMultiplier);
+    // Mejoras del árbol de habilidades (solo los Pokémon del jugador tienen 'perks')
+    const pb = typeof getPerkBonuses === 'function' ? getPerkBonuses(pkmn) : null;
+    const pm = pb ? pb.mult : { hp: 1, attack: 1, defense: 1, spAtk: 1, spDef: 1, speed: 1 };
+
+    const maxHp = Math.floor(((((2 * base.hp) * currentLevel) / 100) + currentLevel + 10) * starMultiplier * pm.hp);
+    const attack = Math.floor(((((2 * base.attack) * currentLevel) / 100) + 5) * starMultiplier * pm.attack);
+    const defense = Math.floor(((((2 * base.defense) * currentLevel) / 100) + 5) * starMultiplier * pm.defense);
+    const spAtk = Math.floor(((((2 * base.spAtk) * currentLevel) / 100) + 5) * starMultiplier * pm.spAtk);
+    const spDef = Math.floor(((((2 * base.spDef) * currentLevel) / 100) + 5) * starMultiplier * pm.spDef);
+    const speed = Math.floor(((((2 * base.speed) * currentLevel) / 100) + 5) * starMultiplier * pm.speed);
 
     const primaryType = pkmnTypes[0];
     const secondaryType = pkmnTypes[1] || primaryType;
@@ -172,6 +176,11 @@ function prepareCombatUnit(pkmn, level = 1) {
             cost: 30 
         }
     ];
+
+    // Ataque final (nivel 80 del árbol)
+    if (pb && pb.finalKind && typeof buildFinalMove === 'function') {
+        dynamicMoves.push(buildFinalMove(primaryType, pb.finalKind === 'spec'));
+    }
 
     return {
         ...pkmn,
@@ -706,7 +715,8 @@ function applyBattleXp(team, xpGained) {
             leveledUp: target.level > oldLevel,
             xp: target.xp,
             xpNeeded: target.level * 100,
-            gained: xpGained
+            gained: xpGained,
+            milestones: Math.floor(target.level / 10) - Math.floor(oldLevel / 10)
         });
     });
     return summary;
@@ -716,6 +726,9 @@ function finishBattle(hasPlayerWon) {
     if (CombatState.isBattleOver) return; // evita repartir recompensas/XP dos veces
     CombatState.isBattleOver = true;
     CombatState.turn = 'none';
+
+    // Estadísticas del perfil del jugador
+    if (typeof recordBattleResult === 'function') recordBattleResult(hasPlayerWon, CombatState.mode);
 
     // 1. Mostrar la animación/cartel grande en pantalla
     showBattleResultOverlay(hasPlayerWon);
@@ -855,6 +868,7 @@ function showPostBattleModal(hasWon, coins, tickets, levelUps) {
                         <div style="width:${pct}%; height:100%; background:linear-gradient(90deg,#38bdf8,#0284c7);"></div>
                     </div>
                     <div style="font-size:10px; color:#94a3b8; text-align:right;">${l.xp} / ${l.xpNeeded} XP</div>
+                    ${l.milestones > 0 ? `<div style="font-size:11px; color:#fbbf24;">🌳 ¡Nuevo nodo en el árbol de habilidades!</div>` : ''}
                 </div>
             </div>`;
     }).join('');
