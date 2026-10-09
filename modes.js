@@ -30,7 +30,8 @@ function generateEnemyTeam(fixedSize, level = 1) {
     return team;
 }
 
-// Obtiene el equipo del jugador sincronizado con el inventario
+// Obtiene el equipo del jugador sincronizado con el inventario.
+// Ya NO se rellena automáticamente con el inventario: hay que tener el equipo montado.
 function getSyncedPlayerTeam(storageKey, maxSlots) {
     let rawTeam = [];
     try {
@@ -40,19 +41,16 @@ function getSyncedPlayerTeam(storageKey, maxSlots) {
         rawTeam = [];
     }
 
-    if ((!rawTeam || rawTeam.length === 0) && typeof userInventory !== 'undefined' && userInventory.length > 0) {
-        rawTeam = userInventory.slice(0, maxSlots);
-    }
+    if (!Array.isArray(rawTeam)) return [];
 
     return rawTeam.slice(0, maxSlots).map(p => {
         if (typeof userInventory !== 'undefined') {
             const realInvPkmn = userInventory.find(item => Number(item.id) === Number(p.id));
-            if (realInvPkmn) {
-                return { ...p, level: realInvPkmn.level || 1, stars: realInvPkmn.stars || 0 };
-            }
+            if (!realInvPkmn) return null; // ya no está en el inventario
+            return { ...p, level: realInvPkmn.level || 1, xp: realInvPkmn.xp || 0, stars: realInvPkmn.stars || 0 };
         }
         return p;
-    });
+    }).filter(Boolean);
 }
 
 // -----------------------------------------
@@ -62,7 +60,7 @@ function startQuickBattle() {
     const finalPlayerTeam = getSyncedPlayerTeam('pokemon_active_team_fast', 3);
 
     if (!finalPlayerTeam || finalPlayerTeam.length === 0) {
-        alert("¡No tienes Pokémon en tu equipo rápido ni en el inventario!");
+        alert("¡Necesitas al menos 1 Pokémon en tu Equipo Rápido para luchar! Ve a la pestaña 'Equipo'.");
         return;
     }
 
@@ -90,7 +88,7 @@ function startStrategyBattle() {
     const finalPlayerTeam = getSyncedPlayerTeam('pokemon_active_team_strategy', 6);
 
     if (!finalPlayerTeam || finalPlayerTeam.length === 0) {
-        alert("¡No tienes un Equipo Estratégico configurado! Ve a la pestaña 'Equipo'.");
+        alert("¡Necesitas al menos 1 Pokémon en tu Equipo Estratégico para luchar! Ve a la pestaña 'Equipo'.");
         return;
     }
 
@@ -111,8 +109,41 @@ function startStrategyBattle() {
     }
 }
 
-// La XP y las subidas de nivel ya se calculan, guardan y muestran en finishBattle() (combat.js).
-// Aquí solo refrescamos la interfaz para no dar la experiencia dos veces.
+// Sistema de subida de nivel persistente
 function awardTeamExperience(winningTeam) {
-    if (typeof renderInventory === 'function') renderInventory();
+    if (!winningTeam || winningTeam.length === 0 || typeof userInventory === 'undefined') return;
+
+    const xpGained = 50; // Experiencia fija que se gana por victoria (puedes ajustarla)
+
+    winningTeam.forEach(pkmn => {
+        let inventoryPkmn = userInventory.find(item => Number(item.id) === Number(pkmn.id));
+        if (inventoryPkmn) {
+            inventoryPkmn.level = inventoryPkmn.level || 1;
+            inventoryPkmn.xp = inventoryPkmn.xp || 0;
+
+            if (inventoryPkmn.level < 100) {
+                inventoryPkmn.xp += xpGained;
+                
+                // Fórmula de experiencia necesaria por nivel (ej: Nivel 1 necesita 100 XP, Nivel 2 necesita 200 XP...)
+                let xpNeeded = inventoryPkmn.level * 100;
+
+                // Bucle por si gana tanta XP en un combate que sube varios niveles de golpe
+                while (inventoryPkmn.xp >= xpNeeded && inventoryPkmn.level < 100) {
+                    inventoryPkmn.xp -= xpNeeded;
+                    inventoryPkmn.level += 1;
+                    xpNeeded = inventoryPkmn.level * 100;
+                    console.log(`🎉 ¡${inventoryPkmn.name} ha subido al nivel ${inventoryPkmn.level}!`);
+                }
+            }
+        }
+    });
+
+    if (typeof saveStorage === 'function') {
+        saveStorage();
+    }
+    if (typeof renderInventory === 'function') {
+        renderInventory();
+    }
+    
+    console.log("¡Experiencia de combate distribuida correctamente!");
 }
