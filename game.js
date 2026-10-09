@@ -338,6 +338,10 @@ function openPokemonModal(pokemonId) {
     const calcDef = Math.floor((Math.floor(((2 * base.defense) * level) / 100) + 5) * mult);
     const calcSpd = Math.floor((Math.floor(((2 * base.speed) * level) / 100) + 5) * mult);
 
+    const currentXp = Number(pkmn.xp) || 0;
+    const xpNeeded = level * 100;
+    const xpPercent = Math.min(100, Math.max(0, Math.floor((currentXp / xpNeeded) * 100)));
+
     content.innerHTML = `
         <div class="modal-header-section">
             <h2 class="modal-pkmn-name">${pkmn.name}</h2>
@@ -356,6 +360,17 @@ function openPokemonModal(pokemonId) {
                 <p>⚔️ Ataque: <strong>${calcAtk}</strong></p>
                 <p>🛡️ Defensa: <strong>${calcDef}</strong></p>
                 <p>⚡ Velocidad: <strong>${calcSpd}</strong></p>
+
+                <div style="margin-top: 10px; background: rgba(0,0,0,0.3); padding: 8px; border-radius: 6px;">
+                    <div style="display: flex; justify-content: space-between; font-size: 12px; color: #94a3b8; margin-bottom: 4px;">
+                        <span>Experiencia (XP)</span>
+                        <span><strong>${currentXp}</strong> / ${xpNeeded} (${xpPercent}%)</span>
+                    </div>
+                    <div style="background: #0f172a; border-radius: 4px; height: 8px; width: 100%; overflow: hidden; border: 1px solid #334155;">
+                        <div style="width: ${xpPercent}%; background: linear-gradient(90deg, #38bdf8, #0284c7); height: 100%; transition: width 0.3s ease;"></div>
+                    </div>
+                </div>
+
                 <div class="modal-ability-info" style="margin-top: 8px;">
                     <p>✨ <strong>Habilidad:</strong> ${abilityName}</p>
                 </div>
