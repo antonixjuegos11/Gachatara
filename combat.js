@@ -1267,4 +1267,3 @@ function showFloatingDamage(cardId, amount, isCrit = false, message = '') {
     card.appendChild(popup);
 
     setTimeout(() => popup.remove(), 1000);
-}
