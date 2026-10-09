@@ -34,6 +34,10 @@
                 <span class="currency-icon">🪙</span>
                 <span id="currency-coins" class="currency-amount">0</span>
             </div>
+            <div class="currency-item" title="Masterballs">
+                <span class="currency-icon">🟣</span>
+                <span id="currency-masterballs" class="currency-amount">0</span>
+            </div>
         </div>
 
         <nav class="nav-bar">
@@ -41,6 +45,7 @@
             <button class="nav-tab" onclick="switchTab('combate', event)">Combate</button>
             <button class="nav-tab" onclick="switchTab('equipo', event)">Equipo</button>
             <button class="nav-tab" onclick="switchTab('mochila', event)">Mochila</button>
+            <button class="nav-tab" onclick="switchTab('tienda', event)">Tienda</button>
             <button class="nav-tab" onclick="switchTab('invocacion', event)">Invocación</button>
             <button class="nav-tab" onclick="switchTab('dex', event)">Dex</button>
             <a href="ajustes.html" class="nav-tab nav-link">Ajustes</a>
@@ -132,6 +137,16 @@
         </div>
     </main>
 
+    <!-- ZONA DE TIENDA -->
+    <main id="tab-tienda" class="lobby-container tab-content">
+        <div class="dex-frame">
+            <div class="equipo-header">
+                <h2>🛒 TIENDA</h2>
+            </div>
+            <div id="shop-content"></div>
+        </div>
+    </main>
+
     <!-- ZONA DE MOCHILA -->
     <main id="tab-mochila" class="lobby-container tab-content">
         <div class="dex-frame">
@@ -197,7 +212,8 @@
     <script src="game.js"></script>
     <script src="skilltree.js"></script>
     <script src="profile.js"></script>
-    <script src="backpack.js"></script> <!-- <--- ¡AQUÍ ESTABA EL FALTANTE! -->
+    <script src="backpack.js"></script>
+    <script src="shop.js"></script> <!-- <--- ¡AQUÍ ESTABA EL FALTANTE! -->
     <script src="combat.js"></script>
     <script src="modes.js"></script>
 </body>

@@ -50,13 +50,13 @@ if (canvas && ctx) {
 const CURRENCIES_KEY = 'pokemon_user_currencies';
 
 function getCurrencies() {
-    const defaultCurrencies = { tickets: 10, shards: 100, coins: 500 };
+    const defaultCurrencies = { tickets: 10, shards: 100, coins: 500, masterballs: 0 };
     const saved = localStorage.getItem(CURRENCIES_KEY);
     if (!saved) {
         localStorage.setItem(CURRENCIES_KEY, JSON.stringify(defaultCurrencies));
         return defaultCurrencies;
     }
-    return JSON.parse(saved);
+    return { masterballs: 0, ...JSON.parse(saved) };
 }
 
 function saveCurrencies(currencies) {
@@ -70,10 +70,12 @@ function updateCurrenciesUI() {
     const ticketsElem = document.getElementById('currency-tickets');
     const shardsElem = document.getElementById('currency-shards');
     const coinsElem = document.getElementById('currency-coins');
+    const masterballsElem = document.getElementById('currency-masterballs');
 
     if (ticketsElem) ticketsElem.innerText = currencies.tickets ?? 0;
     if (shardsElem) shardsElem.innerText = currencies.shards ?? 0;
     if (coinsElem) coinsElem.innerText = currencies.coins ?? 0;
+    if (masterballsElem) masterballsElem.innerText = currencies.masterballs ?? 0;
 }
 
 // =========================================
@@ -110,6 +112,14 @@ const DUPE_COSTS_PER_STAR = [1, 2, 3, 5, 8, 12, 18];
 function getDupeCostForNextStar(currentStars) {
     if (currentStars >= 7) return null;
     return DUPE_COSTS_PER_STAR[currentStars] || 18;
+}
+
+// Coste en monedas de subir cada estrella (más estrellas = más copias Y más dinero)
+const COIN_COST_PER_STAR = [300, 600, 1200, 2500, 5000, 10000, 20000];
+
+function getCoinCostForNextStar(currentStars) {
+    if (currentStars >= 7) return null;
+    return COIN_COST_PER_STAR[currentStars] || 20000;
 }
 
 function getStatMultiplierForStars(stars) {
@@ -383,7 +393,9 @@ function openPokemonModal(pokemonId) {
     }
 
     const nextCost = getDupeCostForNextStar(pkmn.stars);
-    const canAwaken = pkmn.stars < 7 && totalCopies > nextCost;
+    const coinCost = getCoinCostForNextStar(pkmn.stars);
+    const playerCoins = getCurrencies().coins || 0;
+    const canAwaken = pkmn.stars < 7 && totalCopies > nextCost && playerCoins >= coinCost;
     const starsDisplay = '★'.repeat(pkmn.stars) + '☆'.repeat(7 - pkmn.stars);
 
     const mult = getStatMultiplierForStars(pkmn.stars);
@@ -455,11 +467,11 @@ function openPokemonModal(pokemonId) {
 
         <div class="modal-awakening-section" style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: 10px; text-align: center;">
             <div class="dupes-counter" style="margin-bottom: 10px; font-size: 14px; color: #dfe4ea;">
-                📦 Copias totales: <strong>${totalCopies}</strong> (Necesitas ${nextCost} duplicados adicionales)
+                📦 Copias totales: <strong>${totalCopies}</strong> (Necesitas ${nextCost} duplicados adicionales${coinCost ? ` y ${coinCost} 🪙` : ''})
             </div>
             ${pkmn.stars < 7 ? `
                 <button class="btn-awaken" onclick="awakenPokemon(${pkmn.id})" ${!canAwaken ? 'disabled' : ''} style="background: ${canAwaken ? '#2ed573' : '#718093'}; color: white; border: none; padding: 10px 20px; font-size: 14px; font-weight: bold; border-radius: 8px; cursor: ${canAwaken ? 'pointer' : 'not-allowed'}; width: 100%; transition: 0.2s;">
-                    🌟 Despertar Estrella (-${nextCost} copias)
+                    🌟 Despertar Estrella (-${nextCost} copias · -${coinCost} 🪙)
                 </button>
             ` : `
                 <div class="max-rank-text" style="color: #f1c40f; font-weight: bold; font-size: 14px;">🎉 ¡Este Pokémon ha alcanzado el Poder Máximo (7 Estrellas)!</div>
@@ -482,7 +494,17 @@ function awakenPokemon(pokemonId) {
     const nextCost = getDupeCostForNextStar(pkmn.stars);
     let totalCopies = pkmn.count || pkmn.dupes || 1;
 
+    const coinCost = getCoinCostForNextStar(pkmn.stars);
+    const currencies = getCurrencies();
+
+    if (pkmn.stars < 7 && totalCopies > nextCost && (currencies.coins || 0) < coinCost) {
+        alert(`Necesitas ${coinCost} 🪙 para subir esta estrella y tienes ${currencies.coins || 0}.`);
+        return;
+    }
+
     if (pkmn.stars < 7 && totalCopies > nextCost) {
+        currencies.coins -= coinCost;
+        saveCurrencies(currencies);
         totalCopies -= nextCost;        
         pkmn.count = totalCopies;
         pkmn.dupes = totalCopies;
@@ -573,6 +595,10 @@ function switchTab(tabId, event) {
     if (tabId !== 'invocacion') {
         const resultsContainer = document.getElementById('gacha-results');
         if (resultsContainer) resultsContainer.innerHTML = '';
+    }
+
+    if (tabId === 'tienda' && typeof renderShop === 'function') {
+        renderShop();
     }
 
     if (tabId === 'mochila' && typeof renderBackpack === 'function') {
