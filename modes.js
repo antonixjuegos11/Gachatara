@@ -115,12 +115,27 @@ function startStrategyBattle() {
 function awardTeamExperience(winningTeam) {
     if (!winningTeam || winningTeam.length === 0 || typeof userInventory === 'undefined') return;
 
+    const xpGained = 50; // Experiencia fija que se gana por victoria (puedes ajustarla)
+
     winningTeam.forEach(pkmn => {
         let inventoryPkmn = userInventory.find(item => Number(item.id) === Number(pkmn.id));
         if (inventoryPkmn) {
             inventoryPkmn.level = inventoryPkmn.level || 1;
+            inventoryPkmn.xp = inventoryPkmn.xp || 0;
+
             if (inventoryPkmn.level < 100) {
-                inventoryPkmn.level += 1; // Sube de nivel de forma permanente
+                inventoryPkmn.xp += xpGained;
+                
+                // Fórmula de experiencia necesaria por nivel (ej: Nivel 1 necesita 100 XP, Nivel 2 necesita 200 XP...)
+                let xpNeeded = inventoryPkmn.level * 100;
+
+                // Bucle por si gana tanta XP en un combate que sube varios niveles de golpe
+                while (inventoryPkmn.xp >= xpNeeded && inventoryPkmn.level < 100) {
+                    inventoryPkmn.xp -= xpNeeded;
+                    inventoryPkmn.level += 1;
+                    xpNeeded = inventoryPkmn.level * 100;
+                    console.log(`🎉 ¡${inventoryPkmn.name} ha subido al nivel ${inventoryPkmn.level}!`);
+                }
             }
         }
     });
@@ -132,5 +147,5 @@ function awardTeamExperience(winningTeam) {
         renderInventory();
     }
     
-    console.log("¡Experiencia aplicada y guardada con éxito para todo el equipo!");
+    console.log("¡Experiencia de combate distribuida correctamente!");
 }
