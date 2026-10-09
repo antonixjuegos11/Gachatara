@@ -36,7 +36,7 @@ function addPokemonToInventory(pokemon) {
     UNLOCKED_IDS.add(pokemon.id);
 
     // Guardar en el inventario de Equipo
-    const existing = USER_INVENTORY.find(item => item.id === pokemon.id);
+    const existing = USER_INVENTORY.find(item => Number(item.id) === Number(pokemon.id));
     
     if (existing) {
         // Se incrementa el contador de copias (duplicados)
@@ -51,8 +51,8 @@ function addPokemonToInventory(pokemon) {
             types: pokemon.types || [pokemon.type || 'Normal'],
             baseStats: pokemon.baseStats || { hp: 45, attack: 49, defense: 49, spAtk: 65, spDef: 65, speed: 45 },
             ability: pokemon.ability || 'none',
-            level: pokemon.level || 1,
-            xp: 0,
+            level: Number(pokemon.level) || 1,
+            xp: Number(pokemon.xp) || 0,
             stars: 0, // Nivel de estrella inicial
             count: 1  // Copias disponibles para gastar en despertar
         });
@@ -91,18 +91,17 @@ function renderInventory() {
         return;
     }
 
-    // Ordenar por ID para mantener orden de Pokédex
     USER_INVENTORY.sort((a, b) => a.id - b.id);
 
     USER_INVENTORY.forEach((item, index) => {
         item.stars = item.stars || 0;
+        item.level = Number(item.level) || 1;
+        item.xp = Number(item.xp) || 0;
         const starsDisplay = '★'.repeat(item.stars);
 
-        // Cálculos de XP para la tarjeta pequeña
-        const currentXp = item.xp || 0;
-        const currentLevel = item.level || 1;
-        const xpNeeded = currentLevel * 100;
-        const xpPercent = Math.min(100, Math.floor((currentXp / xpNeeded) * 100));
+        // Cálculos de XP seguros para la tarjeta pequeña
+        const xpNeeded = item.level * 100;
+        const xpPercent = Math.min(100, Math.max(0, Math.floor((item.xp / xpNeeded) * 100)));
 
         const card = document.createElement('div');
         card.className = `pokemon-card rarity-${item.rarity}`;
@@ -113,15 +112,14 @@ function renderInventory() {
             <div class="card-id">#${String(item.id).padStart(4, '0')}</div>
             <img src="${item.sprite}" alt="${item.name}" loading="lazy">
             <div class="card-name">${item.name}</div>
-            <div style="font-size: 11px; color: #aaa; margin-top: 2px;">Nv. ${currentLevel}</div>
+            <div style="font-size: 11px; color: #aaa; margin-top: 2px;">Nv. ${item.level}</div>
             
             <!-- Barra de XP en miniatura -->
             <div style="background: #0f172a; border-radius: 4px; height: 6px; width: 90%; margin: 4px auto 0 auto; overflow: hidden; border: 1px solid #334155;">
-                <div style="width: ${xpPercent}%; background: #38bdf8; height: 100%;"></div>
+                <div style="width: ${xpPercent}%; background: #38bdf8; height: 100%; transition: width 0.3s ease;"></div>
             </div>
         `;
         
-        // Al hacer clic en cualquier carta, abre el modal de información detallada
         card.onclick = () => openPokemonModal(index);
         inventoryGrid.appendChild(card);
     });
@@ -138,8 +136,8 @@ function openPokemonModal(index) {
 
     pkmn.stars = pkmn.stars || 0;
     pkmn.count = pkmn.count || 1;
-    pkmn.level = pkmn.level || 1;
-    pkmn.xp = pkmn.xp || 0;
+    pkmn.level = Number(pkmn.level) || 1;
+    pkmn.xp = Number(pkmn.xp) || 0;
 
     // Asegurarnos de inyectar el HTML del modal si no existe en el DOM
     let modal = document.getElementById('pokemon-modal');
@@ -176,10 +174,10 @@ function openPokemonModal(index) {
     const calcDef = Math.floor((Math.floor(((2 * base.defense) * level) / 100) + 5) * mult);
     const calcSpd = Math.floor((Math.floor(((2 * base.speed) * level) / 100) + 5) * mult);
 
-    // Cálculos de XP para el modal
+    // Cálculos de XP seguros para el modal
     const currentXp = pkmn.xp;
     const xpNeeded = level * 100;
-    const xpPercent = Math.min(100, Math.floor((currentXp / xpNeeded) * 100));
+    const xpPercent = Math.min(100, Math.max(0, Math.floor((currentXp / xpNeeded) * 100)));
 
     content.innerHTML = `
         <div class="modal-header-section">
@@ -207,7 +205,7 @@ function openPokemonModal(index) {
                         <span><strong>${currentXp}</strong> / ${xpNeeded} (${xpPercent}%)</span>
                     </div>
                     <div style="background: #0f172a; border-radius: 4px; height: 8px; width: 100%; overflow: hidden; border: 1px solid #334155;">
-                        <div style="width: ${xpPercent}%; background: linear-gradient(90deg, #38bdf8, #0284c7); height: 100%;"></div>
+                        <div style="width: ${xpPercent}%; background: linear-gradient(90deg, #38bdf8, #0284c7); height: 100%; transition: width 0.3s ease;"></div>
                     </div>
                 </div>
 

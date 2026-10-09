@@ -654,7 +654,7 @@ function finishBattle(hasPlayerWon) {
     CombatState.isBattleOver = true;
     CombatState.turn = 'none';
 
-    // 1. Mostrar la animación/cartel grande en pantalla (Victoria o Derrota)
+    // 1. Mostrar la animación/cartel grande en pantalla
     showBattleResultOverlay(hasPlayerWon);
 
     if (hasPlayerWon) {
@@ -680,37 +680,44 @@ function finishBattle(hasPlayerWon) {
         const xpGained = 50;
 
         CombatState.playerTeam.forEach(battlePkmn => {
-            if (typeof userInventory !== 'undefined') {
-                let invPkmn = userInventory.find(item => Number(item.id) === Number(battlePkmn.id));
-                if (invPkmn) {
-                    invPkmn.level = invPkmn.level || 1;
-                    invPkmn.xp = invPkmn.xp || 0;
+            let invPkmn = typeof userInventory !== 'undefined' 
+                ? userInventory.find(item => Number(item.id) === Number(battlePkmn.id)) 
+                : null;
 
-                    if (invPkmn.level < 100) {
-                        let oldLevel = invPkmn.level;
-                        invPkmn.xp += xpGained;
-                        let xpNeeded = invPkmn.level * 100;
+            let target = invPkmn || battlePkmn;
+            target.level = target.level || 1;
+            target.xp = target.xp || 0;
 
-                        // Bucle por si gana tanta XP que sube varios niveles de golpe
-                        while (invPkmn.xp >= xpNeeded && invPkmn.level < 100) {
-                            invPkmn.xp -= xpNeeded;
-                            invPkmn.level += 1;
-                            xpNeeded = invPkmn.level * 100;
-                        }
+            if (target.level < 100) {
+                let oldLevel = target.level;
+                target.xp += xpGained;
+                let xpNeeded = target.level * 100;
 
-                        // Si el nivel subió, lo añadimos al listado del resumen
-                        if (invPkmn.level > oldLevel) {
-                            levelUpsSummary.push({ name: invPkmn.name, newLevel: invPkmn.level });
-                        }
-                    }
+                // Bucle por si gana tanta XP que sube varios niveles de golpe
+                while (target.xp >= xpNeeded && target.level < 100) {
+                    target.xp -= xpNeeded;
+                    target.level += 1;
+                    xpNeeded = target.level * 100;
+                }
+
+                // Sincronizamos ambos por si acaso
+                if (invPkmn && battlePkmn) {
+                    battlePkmn.level = invPkmn.level;
+                    battlePkmn.xp = invPkmn.xp;
+                }
+
+                // Si el nivel subió, lo añadimos al listado del resumen
+                if (target.level > oldLevel) {
+                    levelUpsSummary.push({ name: target.name, newLevel: target.level });
                 }
             }
         });
 
         if (typeof saveStorage === 'function') saveStorage();
+        if (typeof saveInventory === 'function') saveInventory();
         if (typeof renderInventory === 'function') renderInventory();
 
-        // 3. Mostrar el Modal Detallado de Resumen Post-Combate tras un breve momento
+        // 3. Mostrar el Modal Detallado de Resumen Post-Combate
         setTimeout(() => {
             showPostBattleModal(true, coinReward, ticketReward, levelUpsSummary);
         }, 1200);
@@ -725,6 +732,73 @@ function finishBattle(hasPlayerWon) {
 
     updateCombatUI();
 }
+
+function showBattleResultOverlay(hasWon) {
+    const existingOverlay = document.getElementById('battle-result-overlay');
+    if (existingOverlay) existingOverlay.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'battle-result-overlay';
+    overlay.className = `battle-result-overlay ${hasWon ? 'victory' : 'defeat'}`;
+    
+    overlay.innerHTML = `
+        <div class="battle-result-content">
+            <h2>${hasWon ? '¡VICTORIA!' : '¡DERROTA!'}</h2>
+            <p>${hasWon ? 'Has superado el combate con éxito' : 'Tu equipo se ha quedado sin fuerzas'}</p>
+        </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    setTimeout(() => {
+        if (overlay) overlay.remove();
+    }, 2000);
+}
+
+function showPostBattleModal(hasWon, coins, tickets, levelUps) {
+    const existing = document.getElementById('post-battle-modal');
+    if (existing) existing.remove();
+
+    let levelUpsHtml = levelUps.length > 0 
+        ? levelUps.map(l => `<p style="color:#34d399; margin:4px 0;">🎉 ¡<b>${l.name}</b> subió al <b>Nv. ${l.newLevel}</b>!</p>`).join('')
+        : '<p style="color:#aaa; margin:4px 0;">Ningún Pokémon subió de nivel esta vez.</p>';
+
+    const modal = document.createElement('div');
+    modal.id = 'post-battle-modal';
+    modal.className = 'post-battle-backdrop';
+    modal.innerHTML = `
+        <div class="post-battle-card ${hasWon ? 'win' : 'lose'}">
+            <h2>${hasWon ? '¡Victoria Épica!' : 'Derrota...'}</h2>
+            <p class="subtitle">${hasWon ? 'Has dominado el combate con estrategia' : 'Entrena más duro y mejora tu equipo'}</p>
+            
+            ${hasWon ? `
+                <div class="rewards-box">
+                    <h4>🎁 Recompensas Obtenidas:</h4>
+                    <p>🪙 +${coins} Monedas</p>${tickets > 0 ? `<p>🎟️ +${tickets} Ticket(s)</p>` : ''}
+                    <p>⭐ +50 XP para todo el equipo</p>
+                </div>
+                <div class="levelup-box">
+                    <h4>📈 Progresión:</h4>
+                    ${levelUpsHtml}
+                </div>
+            ` : ''}
+
+            <button class="btn-close-post-battle" onclick="closePostBattleAndReturn('${hasWon}')">Continuar</button>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+}
+
+window.closePostBattleAndReturn = function(hasWon) {
+    const modal = document.getElementById('post-battle-modal');
+    if (modal) modal.remove();
+
+    const wonBool = (hasWon === 'true');
+    if (typeof CombatState.onBattleEndCallback === 'function') {
+        CombatState.onBattleEndCallback(wonBool, CombatState.mode);
+    }
+};
 
 // Función auxiliar para mostrar el cartel flotante rápido de inicio
 function showBattleResultOverlay(hasWon) {
