@@ -355,11 +355,36 @@ window.executePlayerMove = function(moveIndex) {
 function executeEnemyTurn() {
     if (CombatState.isBattleOver) return;
 
-    const attacker = CombatState.enemyTeam[CombatState.activeEnemyIndex];
+    let attacker = CombatState.enemyTeam[CombatState.activeEnemyIndex];
     const defender = CombatState.playerTeam[CombatState.activePlayerIndex];
 
     if (!attacker || !defender) return;
 
+    // IA TÁCTICA DE CAMBIO: Si el Pokémon enemigo tiene poca vida (<25%) y hay suplentes vivos, cambia
+    const hpPct = (attacker.currentHp / attacker.maxHp) * 100;
+    let availableSubIndex = -1;
+    if (hpPct < 25) {
+        for (let i = 0; i < CombatState.enemyTeam.length; i++) {
+            if (i !== CombatState.activeEnemyIndex && CombatState.enemyTeam[i].currentHp > 0) {
+                availableSubIndex = i;
+                break;
+            }
+        }
+    }
+
+    if (availableSubIndex !== -1 && Math.random() < 0.7) {
+        const oldEnemyName = attacker.name;
+        CombatState.activeEnemyIndex = availableSubIndex;
+        const newEnemy = CombatState.enemyTeam[CombatState.activeEnemyIndex];
+        addCombatLog(`🔄 ¡El rival retira a ${oldEnemyName} y saca a ${newEnemy.name}!`);
+        
+        renderCombatArena();
+        CombatState.turn = 'player';
+        updateCombatUI();
+        return;
+    }
+
+    // El resto de la lógica de ataque de la IA que ya tenías...
     if (processStatusBeforeTurn(attacker)) {
         updateCombatUI();
         if (attacker.currentHp <= 0) {
@@ -373,35 +398,24 @@ function executeEnemyTurn() {
         return;
     }
 
-    // --- IA TÁCTICA MEJORADA ---
-    let selectedMove = attacker.moves[0]; // Por defecto ataque básico
-    const hpPercentage = (attacker.currentHp / attacker.maxHp) * 100;
-
-    // 1. Si está en apuros (<30% HP) y tiene un movimiento defensivo (power === 0) y energía, prioriza defensa
+    let selectedMove = attacker.moves[0];
     const defensiveMove = attacker.moves.find(m => m.power === 0 && attacker.energy >= (m.cost || 30));
     const specialMove = attacker.moves.find(m => m.isSpecial && attacker.energy >= (m.cost || 50));
 
-    if (hpPercentage < 30 && defensiveMove && Math.random() < 0.7) {
+    if (hpPct < 30 && defensiveMove && Math.random() < 0.7) {
         selectedMove = defensiveMove;
-    } 
-    // 2. Si tiene energía para el ataque especial, hay alta probabilidad de que lo suelte
-    else if (specialMove && Math.random() < 0.8) {
+    } else if (specialMove && Math.random() < 0.8) {
         selectedMove = specialMove;
-    } 
-    // 3. Si no, usa el movimiento con mayor potencia disponible que pueda pagar
-    else {
+    } else {
         let affordableMoves = attacker.moves.filter(m => attacker.energy >= (m.cost || 0));
         if (affordableMoves.length > 0) {
-            // Ordenar de mayor a menor potencia
             affordableMoves.sort((a, b) => (b.power || 0) - (a.power || 0));
             selectedMove = affordableMoves[0];
         }
     }
-    // ---------------------------
 
     attacker.energy -= selectedMove.cost;
 
-    // Si el movimiento enemigo es defensivo (cura/escudo)
     if (selectedMove.power === 0) {
         const healAmount = Math.floor(attacker.maxHp * (selectedMove.shield || 0.2));
         attacker.currentHp = Math.min(attacker.maxHp, attacker.currentHp + healAmount);
@@ -636,30 +650,38 @@ function handleEnemyFaint() {
         renderCombatArena();
     }
 }
-
 function finishBattle(hasPlayerWon) {
     CombatState.isBattleOver = true;
     CombatState.turn = 'none';
 
+    // 1. Mostrar la animación/cartel grande en pantalla (Victoria o Derrota)
+    showBattleResultOverlay(hasPlayerWon);
+
     if (hasPlayerWon) {
         addCombatLog(`🏆 ¡VICTORIA! Has ganado la batalla.`);
         
-        // Calcular recompensas y experiencia
+        // Calcular recompensas según el modo de juego
         const currencies = typeof getCurrencies === 'function' ? getCurrencies() : { coins: 0, tickets: 0 };
-        let coinReward = CombatState.mode === 'story' ? 250 : (CombatState.mode === 'ranked' ? 300 : 100);
-        let ticketReward = CombatState.mode === 'ranked' ? 1 : 0;
+        let coinReward = 100;
+        let ticketReward = 0;
+
+        if (CombatState.mode === 'story') coinReward = 250;
+        if (CombatState.mode === 'ranked') { coinReward = 300; ticketReward = 1; }
 
         currencies.coins = (currencies.coins || 0) + coinReward;
         currencies.tickets = (currencies.tickets || 0) + ticketReward;
-        if (typeof saveCurrencies === 'function') saveCurrencies(currencies);
 
-        // Distribuir XP y detectar subidas de nivel para el resumen
+        if (typeof saveCurrencies === 'function') {
+            saveCurrencies(currencies);
+        }
+
+        // 2. Distribuir XP y recopilar qué Pokémon suben de nivel de forma real
         let levelUpsSummary = [];
         const xpGained = 50;
 
-        CombatState.playerTeam.forEach(pkmn => {
+        CombatState.playerTeam.forEach(battlePkmn => {
             if (typeof userInventory !== 'undefined') {
-                let invPkmn = userInventory.find(item => Number(item.id) === Number(pkmn.id));
+                let invPkmn = userInventory.find(item => Number(item.id) === Number(battlePkmn.id));
                 if (invPkmn) {
                     invPkmn.level = invPkmn.level || 1;
                     invPkmn.xp = invPkmn.xp || 0;
@@ -669,12 +691,14 @@ function finishBattle(hasPlayerWon) {
                         invPkmn.xp += xpGained;
                         let xpNeeded = invPkmn.level * 100;
 
+                        // Bucle por si gana tanta XP que sube varios niveles de golpe
                         while (invPkmn.xp >= xpNeeded && invPkmn.level < 100) {
                             invPkmn.xp -= xpNeeded;
                             invPkmn.level += 1;
                             xpNeeded = invPkmn.level * 100;
                         }
 
+                        // Si el nivel subió, lo añadimos al listado del resumen
                         if (invPkmn.level > oldLevel) {
                             levelUpsSummary.push({ name: invPkmn.name, newLevel: invPkmn.level });
                         }
@@ -686,16 +710,90 @@ function finishBattle(hasPlayerWon) {
         if (typeof saveStorage === 'function') saveStorage();
         if (typeof renderInventory === 'function') renderInventory();
 
-        // Mostrar Modal de Resumen Post-Combate
-        showPostBattleModal(true, coinReward, ticketReward, levelUpsSummary);
+        // 3. Mostrar el Modal Detallado de Resumen Post-Combate tras un breve momento
+        setTimeout(() => {
+            showPostBattleModal(true, coinReward, ticketReward, levelUpsSummary);
+        }, 1200);
 
     } else {
         addCombatLog(`❌ DERROTA. Tu equipo ha sido vencido.`);
-        showPostBattleModal(false, 0, 0, []);
+        
+        setTimeout(() => {
+            showPostBattleModal(false, 0, 0, []);
+        }, 1200);
     }
 
     updateCombatUI();
 }
+
+// Función auxiliar para mostrar el cartel flotante rápido de inicio
+function showBattleResultOverlay(hasWon) {
+    const existingOverlay = document.getElementById('battle-result-overlay');
+    if (existingOverlay) existingOverlay.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'battle-result-overlay';
+    overlay.className = `battle-result-overlay ${hasWon ? 'victory' : 'defeat'}`;
+    
+    overlay.innerHTML = `
+        <div class="battle-result-content">
+            <h2>${hasWon ? '¡VICTORIA!' : '¡DERROTA!'}</h2>
+            <p>${hasWon ? 'Has superado el combate con éxito' : 'Tu equipo se ha quedado sin fuerzas'}</p>
+        </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    setTimeout(() => {
+        if (overlay) overlay.remove();
+    }, 2000);
+}
+
+// Función que dibuja el modal completo de recompensas y subidas de nivel
+function showPostBattleModal(hasWon, coins, tickets, levelUps) {
+    const existing = document.getElementById('post-battle-modal');
+    if (existing) existing.remove();
+
+    let levelUpsHtml = levelUps.length > 0 
+        ? levelUps.map(l => `<p style="color:#34d399; margin:4px 0;">🎉 ¡<b>${l.name}</b> subió al <b>Nv. ${l.newLevel}</b>!</p>`).join('')
+        : '<p style="color:#aaa; margin:4px 0;">Ningún Pokémon subió de nivel esta vez.</p>';
+
+    const modal = document.createElement('div');
+    modal.id = 'post-battle-modal';
+    modal.className = 'post-battle-backdrop';
+    modal.innerHTML = `
+        <div class="post-battle-card ${hasWon ? 'win' : 'lose'}">
+            <h2>${hasWon ? '¡Victoria Épica!' : 'Derrota...'}</h2>
+            <p class="subtitle">${hasWon ? 'Has dominado el combate con estrategia' : 'Entrena más duro y mejora tu equipo'}</p>
+            
+            ${hasWon ? `
+                <div class="rewards-box">
+                    <h4>🎁 Recompensas Obtenidas:</h4>
+                    <p>🪙 +${coins} Monedas</p>${tickets > 0 ? `<p>🎟️ +${tickets} Ticket(s)</p>` : ''}
+                    <p>⭐ +50 XP para todo el equipo</p>
+                </div>
+                <div class="levelup-box">
+                    <h4>📈 Progresión:</h4>
+                    ${levelUpsHtml}
+                </div>
+            ` : ''}
+
+            <button class="btn-close-post-battle" onclick="closePostBattleAndReturn('${hasWon}')">Continuar</button>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+}
+
+window.closePostBattleAndReturn = function(hasWon) {
+    const modal = document.getElementById('post-battle-modal');
+    if (modal) modal.remove();
+
+    const wonBool = (hasWon === 'true');
+    if (typeof CombatState.onBattleEndCallback === 'function') {
+        CombatState.onBattleEndCallback(wonBool, CombatState.mode);
+    }
+};
 
 // Función que crea la ventana modal bonita de resumen
 function showPostBattleModal(hasWon, coins, tickets, levelUps) {

@@ -51,7 +51,8 @@ function addPokemonToInventory(pokemon) {
             types: pokemon.types || [pokemon.type || 'Normal'],
             baseStats: pokemon.baseStats || { hp: 45, attack: 49, defense: 49, spAtk: 65, spDef: 65, speed: 45 },
             ability: pokemon.ability || 'none',
-            level: pokemon.level || 10,
+            level: pokemon.level || 1,
+            xp: 0,
             stars: 0, // Nivel de estrella inicial
             count: 1  // Copias disponibles para gastar en despertar
         });
@@ -97,6 +98,12 @@ function renderInventory() {
         item.stars = item.stars || 0;
         const starsDisplay = '★'.repeat(item.stars);
 
+        // Cálculos de XP para la tarjeta pequeña
+        const currentXp = item.xp || 0;
+        const currentLevel = item.level || 1;
+        const xpNeeded = currentLevel * 100;
+        const xpPercent = Math.min(100, Math.floor((currentXp / xpNeeded) * 100));
+
         const card = document.createElement('div');
         card.className = `pokemon-card rarity-${item.rarity}`;
         card.style.cursor = 'pointer';
@@ -106,6 +113,12 @@ function renderInventory() {
             <div class="card-id">#${String(item.id).padStart(4, '0')}</div>
             <img src="${item.sprite}" alt="${item.name}" loading="lazy">
             <div class="card-name">${item.name}</div>
+            <div style="font-size: 11px; color: #aaa; margin-top: 2px;">Nv. ${currentLevel}</div>
+            
+            <!-- Barra de XP en miniatura -->
+            <div style="background: #0f172a; border-radius: 4px; height: 6px; width: 90%; margin: 4px auto 0 auto; overflow: hidden; border: 1px solid #334155;">
+                <div style="width: ${xpPercent}%; background: #38bdf8; height: 100%;"></div>
+            </div>
         `;
         
         // Al hacer clic en cualquier carta, abre el modal de información detallada
@@ -125,6 +138,8 @@ function openPokemonModal(index) {
 
     pkmn.stars = pkmn.stars || 0;
     pkmn.count = pkmn.count || 1;
+    pkmn.level = pkmn.level || 1;
+    pkmn.xp = pkmn.xp || 0;
 
     // Asegurarnos de inyectar el HTML del modal si no existe en el DOM
     let modal = document.getElementById('pokemon-modal');
@@ -148,19 +163,23 @@ function openPokemonModal(index) {
     const abilityName = typeof getAbilityDisplayName === 'function' ? getAbilityDisplayName(pkmn.ability) : (pkmn.ability || 'Ninguna');
 
     const nextCost = getDupeCostForNextStar(pkmn.stars);
-    // El coste requiere tener al menos 1 copia adicional consumible (contando la unidad base que siempre ocupa 1)
     const canAwaken = pkmn.stars < 7 && pkmn.count > nextCost;
     const starsDisplay = '★'.repeat(pkmn.stars) + '☆'.repeat(7 - pkmn.stars);
 
     // Calcular stats reales afectados por el multiplicador de estrellas
     const mult = getStatMultiplierForStars(pkmn.stars);
     const base = pkmn.baseStats || { hp: 45, attack: 49, defense: 49, speed: 45 };
-    const level = pkmn.level || 10;
+    const level = pkmn.level;
     
     const calcHp = Math.floor((Math.floor(((2 * base.hp) * level) / 100) + level + 10) * mult);
     const calcAtk = Math.floor((Math.floor(((2 * base.attack) * level) / 100) + 5) * mult);
     const calcDef = Math.floor((Math.floor(((2 * base.defense) * level) / 100) + 5) * mult);
     const calcSpd = Math.floor((Math.floor(((2 * base.speed) * level) / 100) + 5) * mult);
+
+    // Cálculos de XP para el modal
+    const currentXp = pkmn.xp;
+    const xpNeeded = level * 100;
+    const xpPercent = Math.min(100, Math.floor((currentXp / xpNeeded) * 100));
 
     content.innerHTML = `
         <div class="modal-header-section">
@@ -180,6 +199,18 @@ function openPokemonModal(index) {
                 <p>⚔️ Ataque: <strong>${calcAtk}</strong></p>
                 <p>🛡️ Defensa: <strong>${calcDef}</strong></p>
                 <p>⚡ Velocidad: <strong>${calcSpd}</strong></p>
+
+                <!-- Barra de XP detallada en el modal -->
+                <div style="margin-top: 10px; background: rgba(0,0,0,0.3); padding: 8px; border-radius: 6px;">
+                    <div style="display: flex; justify-content: space-between; font-size: 12px; color: #94a3b8; margin-bottom: 4px;">
+                        <span>Experiencia (XP)</span>
+                        <span><strong>${currentXp}</strong> / ${xpNeeded} (${xpPercent}%)</span>
+                    </div>
+                    <div style="background: #0f172a; border-radius: 4px; height: 8px; width: 100%; overflow: hidden; border: 1px solid #334155;">
+                        <div style="width: ${xpPercent}%; background: linear-gradient(90deg, #38bdf8, #0284c7); height: 100%;"></div>
+                    </div>
+                </div>
+
                 <div class="modal-ability-info" style="margin-top: 8px;">
                     <p>✨ <strong>Habilidad:</strong> ${abilityName}</p>
                 </div>
@@ -214,14 +245,12 @@ function awakenPokemon(index) {
     if (!pkmn) return;
 
     const nextCost = getDupeCostForNextStar(pkmn.stars);
-    // Para gastar X duplicados y subir estrella, el contador total debe ser mayor que el coste
     if (pkmn.stars < 7 && pkmn.count > nextCost) {
-        pkmn.count -= nextCost; // Consumimos las copias
-        pkmn.stars += 1;        // Subimos una estrella
-        
+        pkmn.count -= nextCost;
+        pkmn.stars += 1;        
         saveInventory();
-        openPokemonModal(index); // Refrescamos el modal abierto
-        renderInventory();       // Refrescamos la rejilla de equipo
+        openPokemonModal(index);
+        renderInventory();
     }
 }
 
@@ -267,7 +296,6 @@ document.addEventListener('click', function(event) {
     const inventoryGrid = document.getElementById('inventory-grid');
     if (!inventoryGrid || !inventoryGrid.contains(card)) return;
 
-    // Obtenemos todas las cartas actuales de la rejilla para saber el índice exacto
     const cards = Array.from(inventoryGrid.querySelectorAll('.pokemon-card'));
     const index = cards.indexOf(card);
 
