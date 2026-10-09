@@ -22,10 +22,17 @@ function getRandomEnemy(level = 10) {
 }
 
 // Genera un array con exactamente la cantidad de enemigos requerida (3 o 6)
+// Nivel más alto del equipo del jugador
+function getTopTeamLevel(team) {
+    return Math.max(1, ...(team || []).map(p => Number(p.level) || 1));
+}
+
+// Los rivales tienen un nivel semejante al más fuerte (entre 0 y 2 niveles menos, mínimo 1, máximo 100)
 function generateEnemyTeam(fixedSize, level = 1) {
     let team = [];
     for (let i = 0; i < fixedSize; i++) {
-        team.push(getRandomEnemy(level));
+        const enemyLevel = Math.min(100, Math.max(1, level - Math.floor(Math.random() * 3)));
+        team.push(getRandomEnemy(enemyLevel));
     }
     return team;
 }
@@ -64,11 +71,11 @@ function startQuickBattle() {
         return;
     }
 
-    // Nivel promedio del equipo para nivelar a los 3 rivales
-    const avgLevel = Math.floor(finalPlayerTeam.reduce((sum, p) => sum + (p.level || 1), 0) / finalPlayerTeam.length);
+    // Nivel del Pokémon MÁS FUERTE del equipo para nivelar a los 3 rivales
+    const topLevel = getTopTeamLevel(finalPlayerTeam);
     
     // Forzamos un equipo enemigo de EXACTAMENTE 3 Pokémon
-    const enemyTeam = generateEnemyTeam(3, avgLevel);
+    const enemyTeam = generateEnemyTeam(3, topLevel);
 
     if (typeof startBattle === 'function') {
         startBattle(finalPlayerTeam, enemyTeam, 'quick', (hasWon) => {
@@ -92,11 +99,11 @@ function startStrategyBattle() {
         return;
     }
 
-    // Nivel promedio del equipo para nivelar a los 6 rivales
-    const avgLevel = Math.floor(finalPlayerTeam.reduce((sum, p) => sum + (p.level || 1), 0) / finalPlayerTeam.length);
+    // Nivel del Pokémon MÁS FUERTE del equipo para nivelar a los 6 rivales
+    const topLevel = getTopTeamLevel(finalPlayerTeam);
     
     // Forzamos un equipo enemigo de EXACTAMENTE 6 Pokémon
-    const enemyTeam = generateEnemyTeam(6, avgLevel);
+    const enemyTeam = generateEnemyTeam(6, topLevel);
 
     if (typeof startBattle === 'function') {
         startBattle(finalPlayerTeam, enemyTeam, 'strategy', (hasWon) => {
