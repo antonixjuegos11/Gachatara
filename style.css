@@ -1625,3 +1625,76 @@ a.nav-link {
 .btn-close-post-battle:hover {
     background: #2563eb;
 }
+
+/* =========================================
+   AJUSTES DE VISIÓN: CABECERA COMPACTA Y ADAPTABLE
+   (la cabecera se divide en filas si no cabe, y el contenido
+    se desplaza según su altura real: --header-h lo calcula layout.js)
+   ========================================= */
+.top-header {
+    flex-wrap: wrap;
+    gap: 0.4rem 1rem;
+    padding: 0.5rem 1.2rem;
+}
+
+.logo-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.logo-title .game-tag {
+    font-size: 1.2rem;
+    letter-spacing: 2px;
+}
+
+.nav-bar {
+    flex: 1 1 auto;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.15rem;
+}
+
+.nav-tab {
+    font-size: 0.82rem;
+    padding: 0.4rem 0.75rem;
+    letter-spacing: 1px;
+    white-space: nowrap;
+}
+
+.currencies-bar {
+    gap: 12px;
+    padding: 4px 12px;
+    flex-shrink: 0;
+}
+
+.currency-item { font-size: 0.95rem; }
+
+.currency-img {
+    width: 22px;
+    height: 22px;
+    image-rendering: pixelated;
+    vertical-align: middle;
+    filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.3));
+}
+
+.profile-chip { margin-left: 0 !important; }
+.pf-avatar { width: 32px !important; height: 32px !important; }
+
+.tab-content {
+    padding-top: calc(var(--header-h, 100px) + 16px) !important;
+}
+
+#tab-lobby.active {
+    min-height: calc(100vh - var(--header-h, 100px));
+}
+
+.settings-container {
+    margin-top: calc(var(--header-h, 100px) + 20px) !important;
+}
+
+@media (max-width: 700px) {
+    .top-header { padding: 0.4rem 0.6rem; }
+    .nav-bar { justify-content: center; }
+    .nav-tab { padding: 0.35rem 0.5rem; font-size: 0.75rem; }
+}

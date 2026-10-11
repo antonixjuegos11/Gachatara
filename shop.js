@@ -24,11 +24,18 @@ const SHOP_SECTIONS = [
     { id: 'pokemon',     name: 'Pokémon',     icon: '🐾' },
     { id: 'objetos',     name: 'Objetos',     icon: '🎒' },
     { id: 'skins',       name: 'Skins',       icon: '🎨' },
-    { id: 'masterballs', name: 'Masterballs', icon: '🟣' },
+    { id: 'masterballs', name: 'Masterballs', icon: '__MB__' },
     { id: 'calendario',  name: 'Calendario',  icon: '🎁' }
 ];
 
 let currentShopSection = 'pokemon';
+
+// ---------- Icono de Masterball (imagen) ----------
+const MASTERBALL_IMG_URL = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/master-ball.png';
+
+function masterballIcon(size = 18) {
+    return `<img src="${MASTERBALL_IMG_URL}" alt="Masterball" style="width: ${size}px; height: ${size}px; vertical-align: middle; image-rendering: pixelated;" onerror="this.replaceWith(document.createTextNode('🟣'))">`;
+}
 
 // ---------- Utilidades ----------
 
@@ -190,7 +197,7 @@ function buyMasterballOffer(index) {
 
     const currencies = getCurrencies();
     if ((currencies.masterballs || 0) < offer.cost) {
-        showShopToast('No tienes suficientes Masterballs 🟣');
+        showShopToast('No tienes suficientes Masterballs');
         return;
     }
 
@@ -198,20 +205,20 @@ function buyMasterballOffer(index) {
     currencies[offer.currency] = (currencies[offer.currency] || 0) + offer.amount;
     saveCurrencies(currencies);
 
-    showShopToast(`✅ Cambiaste ${offer.cost} 🟣 por ${offer.amount} ${offer.icon}`);
+    showShopToast(`✅ Cambiaste ${offer.cost} Masterball${offer.cost > 1 ? 's' : ''} por ${offer.amount} ${offer.label}`);
     renderShop();
 }
 
 function renderShopMasterballs() {
     const balls = getCurrencies().masterballs || 0;
     return `
-        <p class="shop-note">🟣 Tienes <b>${balls}</b> Masterballs. Se conseguirán en misiones y otras actividades futuras.</p>
+        <p class="shop-note">${masterballIcon(18)} Tienes <b>${balls}</b> Masterballs. Se conseguirán en misiones y otras actividades futuras.</p>
         <div class="shop-grid wide">
             ${MASTERBALL_OFFERS.map((o, i) => `
                 <div class="shop-offer">
                     <div style="font-size: 34px;">${o.icon}</div>
                     <h4>+${o.amount} ${o.label}</h4>
-                    <button class="shop-buy" ${balls < o.cost ? 'disabled' : ''} onclick="buyMasterballOffer(${i})">${o.cost} 🟣</button>
+                    <button class="shop-buy" ${balls < o.cost ? 'disabled' : ''} onclick="buyMasterballOffer(${i})">${o.cost} ${masterballIcon(16)}</button>
                 </div>`).join('')}
         </div>`;
 }
@@ -227,7 +234,7 @@ function getAdventReward(day, daysInMonth) {
 }
 
 function formatRewardIcons(reward) {
-    const icons = { coins: '🪙', tickets: '🎟️', masterballs: '🟣', shards: '💎' };
+    const icons = { coins: '🪙', tickets: '🎟️', masterballs: masterballIcon(16), shards: '💎' };
     return Object.entries(reward).map(([k, v]) => `${icons[k]} ${v}`).join('<br>');
 }
 
@@ -348,7 +355,7 @@ function renderShop() {
 
     const tabs = SHOP_SECTIONS.map(s => `
         <button class="banner-btn ${s.id === currentShopSection ? 'active' : ''}" onclick="switchShopSection('${s.id}')">
-            ${s.icon} ${s.name}${s.id === 'calendario' && hasUnclaimedAdvent() ? '<span class="shop-dot"></span>' : ''}
+            ${s.icon === '__MB__' ? masterballIcon(18) : s.icon} ${s.name}${s.id === 'calendario' && hasUnclaimedAdvent() ? '<span class="shop-dot"></span>' : ''}
         </button>`).join('');
 
     let body = '';

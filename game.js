@@ -175,6 +175,22 @@ function addPokemonToInventory(pkmn) {
 }
 
 // Renderizar los slots del equipo activo superior
+function moveTeamMember(fromIndex, toIndex) {
+    const currentTeam = currentTeamMode === 'strategy' ? activeTeamStrategy : activeTeamFast;
+    if (fromIndex === toIndex || fromIndex < 0 || fromIndex >= currentTeam.length) return;
+
+    // Soltar en un hueco vacío = colocar al final del equipo
+    toIndex = Math.max(0, Math.min(toIndex, currentTeam.length - 1));
+
+    const [moved] = currentTeam.splice(fromIndex, 1);
+    currentTeam.splice(toIndex, 0, moved);
+
+    saveStorage();
+    renderActiveTeamSlots();
+    renderInventory();
+}
+
+// Slots del equipo activo: se pueden reordenar arrastrando o con las flechas (el 1º es el que sale primero a combatir)
 function renderActiveTeamSlots() {
     const slotsContainer = document.getElementById('active-team-slots');
     if (!slotsContainer) return;
@@ -185,24 +201,71 @@ function renderActiveTeamSlots() {
 
     for (let i = 0; i < maxSlots; i++) {
         const pkmn = currentTeam[i];
+
+        const wrap = document.createElement('div');
+        wrap.style.cssText = 'display: flex; flex-direction: column; align-items: center; gap: 4px;';
+
         const slotDiv = document.createElement('div');
         slotDiv.className = 'active-team-slot';
         slotDiv.style.cssText = 'width: 70px; height: 70px; background: rgba(255,255,255,0.05); border: 2px dashed rgba(0,242,254,0.4); border-radius: 10px; display: flex; align-items: center; justify-content: center; position: relative; cursor: pointer; transition: 0.2s;';
 
         if (pkmn) {
             slotDiv.style.border = '2px solid #00f2fe';
+            slotDiv.style.cursor = 'grab';
+            slotDiv.draggable = true;
             slotDiv.innerHTML = `
-                <img src="${pkmn.sprite}" alt="${pkmn.name}" style="width: 50px; height: 50px; object-fit: contain;">
+                <img src="${pkmn.sprite}" alt="${pkmn.name}" draggable="false" style="width: 50px; height: 50px; object-fit: contain;">
                 <span style="position: absolute; top: -5px; right: -5px; background: #eb4d4b; color: white; border-radius: 50%; width: 18px; height: 18px; font-size: 10px; display: flex; align-items: center; justify-content: center; font-weight: bold;">✕</span>
             `;
-            slotDiv.title = `Quitar a ${pkmn.name} del equipo`;
+            slotDiv.title = `${pkmn.name} · arrástralo para cambiar el orden, o haz clic para quitarlo del equipo`;
             slotDiv.onclick = () => removePokemonFromTeam(i);
+
+            slotDiv.addEventListener('dragstart', e => {
+                e.dataTransfer.setData('text/plain', String(i));
+                e.dataTransfer.effectAllowed = 'move';
+                slotDiv.style.opacity = '0.4';
+            });
+            slotDiv.addEventListener('dragend', () => { slotDiv.style.opacity = '1'; });
         } else {
             slotDiv.innerHTML = `<span style="color: rgba(255,255,255,0.3); font-size: 20px;">+</span>`;
             slotDiv.title = `Slot vacío (${i + 1}/${maxSlots})`;
         }
 
-        slotsContainer.appendChild(slotDiv);
+        // Cualquier slot puede recibir un Pokémon arrastrado
+        slotDiv.addEventListener('dragover', e => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            slotDiv.style.boxShadow = '0 0 12px #fbbf24';
+        });
+        slotDiv.addEventListener('dragleave', () => { slotDiv.style.boxShadow = 'none'; });
+        slotDiv.addEventListener('drop', e => {
+            e.preventDefault();
+            slotDiv.style.boxShadow = 'none';
+            const from = parseInt(e.dataTransfer.getData('text/plain'), 10);
+            if (!isNaN(from)) moveTeamMember(from, i);
+        });
+
+        wrap.appendChild(slotDiv);
+
+        // Posición + flechas para mover (útil en móvil)
+        const controls = document.createElement('div');
+        controls.style.cssText = 'display: flex; align-items: center; gap: 4px; font-size: 11px; color: #94a3b8;';
+        const btnStyle = 'background: #1e293b; border: 1px solid #334155; color: #00f2fe; border-radius: 4px; cursor: pointer; padding: 0 5px; line-height: 16px;';
+        if (pkmn) {
+            controls.innerHTML = `
+                <button style="${btnStyle}" ${i === 0 ? 'disabled' : ''} title="Mover a la izquierda">◀</button>
+                <b>${i + 1}º</b>
+                <button style="${btnStyle}" ${i >= currentTeam.length - 1 ? 'disabled' : ''} title="Mover a la derecha">▶</button>`;
+            const [left, right] = controls.querySelectorAll('button');
+            left.onclick = () => moveTeamMember(i, i - 1);
+            right.onclick = () => moveTeamMember(i, i + 1);
+            [left, right].forEach(btn => { if (btn.disabled) btn.style.opacity = '0.3'; });
+        } else {
+            controls.innerHTML = `<b>${i + 1}º</b>`;
+        }
+        wrap.appendChild(controls);
+
+        slotsContainer.appendChild(wrap);
     }
 }
 
