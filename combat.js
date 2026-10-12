@@ -13,7 +13,11 @@ const CombatState = {
     isBattleOver: false,
     mode: 'quick', // 'quick' | 'story' | 'ranked'
     onBattleEndCallback: null,
-    logHistory: []
+    logHistory: [],
+    weather: null,
+    weatherTurns: 0,
+    terrain: null,
+    terrainTurns: 0
 };
 
 // Diccionario de traducción de estados al español
@@ -198,6 +202,10 @@ function prepareCombatUnit(pkmn, level = 1) {
         type: primaryType,
         ability,
         status: pkmn.status || null,
+        mods: { atk: 1, def: 1, spAtk: 1, spDef: 1, spd: 1 },
+        flags: {},
+        persist: {},
+        turnsIn: 0,
         moves: dynamicMoves
     };
 }
@@ -248,6 +256,10 @@ function startBattle(playerUnits, enemyUnits, mode = 'quick', onEndCallback = nu
     CombatState.mode = mode;
     CombatState.onBattleEndCallback = onEndCallback;
     CombatState.logHistory = [];
+    CombatState.weather = null;
+    CombatState.weatherTurns = 0;
+    CombatState.terrain = null;
+    CombatState.terrainTurns = 0;
 
     const pActive = CombatState.playerTeam[0];
     const eActive = CombatState.enemyTeam[0];
@@ -276,19 +288,72 @@ function startBattle(playerUnits, enemyUnits, mode = 'quick', onEndCallback = nu
 // =========================================
 
 function processStatusBeforeTurn(unit) {
-    if (!unit || !unit.status) return false;
+    if (!unit) return false;
+    if (typeof ensureUnit === 'function') ensureUnit(unit);
 
-    const statusNameEs = STATUS_TRANSLATIONS[unit.status] || unit.status;
-
+    // Daño / curación por estados (Antídoto, Muro Mágico, Ignífugo...)
     if (unit.status === "poisoned" || unit.status === "burned") {
-        const statusDamage = Math.max(1, Math.floor(unit.maxHp * 0.1));
-        unit.currentHp = Math.max(0, unit.currentHp - statusDamage);
-        addCombatLog(`⚠️ ${unit.name} sufre por su estado (${statusNameEs}) y pierde ${statusDamage} HP.`);
+        const statusNameEs = STATUS_TRANSLATIONS[unit.status] || unit.status;
+        const tick = typeof abilityStatusTick === 'function'
+            ? abilityStatusTick(unit, unit.status)
+            : { damage: Math.max(1, Math.floor(unit.maxHp * 0.1)) };
+
+        if (tick.heal) {
+            unit.currentHp = Math.min(unit.maxHp, unit.currentHp + tick.heal);
+            addCombatLog(`💚 ¡${unit.name} recupera ${tick.heal} HP gracias a su habilidad!`);
+        } else if (tick.damage) {
+            unit.currentHp = Math.max(0, unit.currentHp - tick.damage);
+            addCombatLog(`⚠️ ${unit.name} sufre por su estado (${statusNameEs}) y pierde ${tick.damage} HP.`);
+        }
+        if (unit.currentHp <= 0) return true;
     }
+
+    // Habilidades que condicionan el turno (Ausente...)
+    if (typeof triggerAbility === 'function') {
+        const before = triggerAbility('onBeforeMove', unit, typeof foeOf === 'function' ? foeOf(unit) : null, null, 0, CombatState);
+        if (before && before.skip) {
+            addCombatLog(before.message);
+            return true;
+        }
+    }
+
+    if (unit.flags && unit.flags.flinch) {
+        unit.flags.flinch = false;
+        addCombatLog(`😵 ¡${unit.name} se amedrentó y no pudo moverse!`);
+        return true;
+    }
+
+    if (unit.flags && unit.flags.charmed && Math.random() < 0.5) {
+        addCombatLog(`💘 ¡${unit.name} está enamorado y no puede atacar!`);
+        return true;
+    }
+
+    if (!unit.status) return false;
 
     if (unit.status === "paralyzed" && Math.random() < 0.25) {
         addCombatLog(`⚡ ¡${unit.name} está tan paralizado que no puede moverse!`);
         return true;
+    }
+
+    if (unit.status === "asleep") {
+        if (unit.sleepTurns === undefined) unit.sleepTurns = 2;
+        if (unit.sleepTurns > 0) {
+            unit.sleepTurns--;
+            addCombatLog(`😴 ¡${unit.name} está profundamente dormido!`);
+            return true;
+        }
+        unit.status = null;
+        addCombatLog(`⏰ ¡${unit.name} se ha despertado!`);
+    }
+
+    if (unit.status === "frozen") {
+        if (Math.random() < 0.2) {
+            unit.status = null;
+            addCombatLog(`🔥 ¡${unit.name} se ha descongelado!`);
+        } else {
+            addCombatLog(`🧊 ¡${unit.name} está congelado y no puede moverse!`);
+            return true;
+        }
     }
 
     return false;
@@ -349,10 +414,11 @@ window.executePlayerMove = function(moveIndex) {
     defender.currentHp = Math.max(0, defender.currentHp - damageResult.damage);
     attacker.energy = Math.min(attacker.maxEnergy, attacker.energy + move.energyGain);
 
-    if (move.statusEffect && !defender.status && Math.random() < (move.statusChance || 0.2)) {
-        defender.status = move.statusEffect;
-        const statusNameEs = STATUS_TRANSLATIONS[move.statusEffect] || move.statusEffect;
-        addCombatLog(`🦠 ¡${defender.name} ha quedado ${statusNameEs}!`);
+    if (move.statusEffect && damageResult.damage > 0 && !defender.status) {
+        const chance = typeof abilityStatusChance === 'function'
+            ? abilityStatusChance(attacker, defender, move, move.statusChance || 0.2)
+            : (move.statusChance || 0.2);
+        if (Math.random() < chance) tryApplyStatus(defender, move.statusEffect, attacker);
     }
 
     triggerUnitAnimation('player-card', 'attack');
@@ -364,14 +430,22 @@ window.executePlayerMove = function(moveIndex) {
     if (damageResult.effMessage) logText += ` (${damageResult.effMessage})`;
     addCombatLog(logText);
 
-    updateCombatUI();
+    // Habilidades de contacto, KO, etc.
+    if (typeof applyPostHitAbilities === 'function') applyPostHitAbilities(attacker, defender, move, damageResult);
 
-    if (defender.currentHp <= 0) {
-        setTimeout(handleEnemyFaint, 1000);
-    } else {
-        setTimeout(endTurn, 1200);
-    }
+    updateCombatUI();
+    resolveAfterAction(attacker, defender, endTurn);
 };
+
+// Tras una acción: gestiona debilitados (rival, propio por retroceso/contacto...) o continúa el turno
+function resolveAfterAction(playerUnit, enemyUnit, continueFn) {
+    const pDead = playerUnit.currentHp <= 0;
+    const eDead = enemyUnit.currentHp <= 0;
+
+    if (eDead) setTimeout(handleEnemyFaint, 1000);
+    if (pDead) setTimeout(handlePlayerFaint, eDead ? 1700 : 1000);
+    if (!pDead && !eDead && continueFn) setTimeout(continueFn, 1200);
+}
 
 function executeEnemyTurn() {
     if (CombatState.isBattleOver) return;
@@ -393,11 +467,24 @@ function executeEnemyTurn() {
         }
     }
 
-    if (availableSubIndex !== -1 && Math.random() < 0.7) {
+    const enemyTrapped = typeof abilityTrapMessage === 'function' && abilityTrapMessage(attacker);
+
+    if (availableSubIndex !== -1 && !enemyTrapped && Math.random() < 0.7) {
         const oldEnemyName = attacker.name;
+
+        if (typeof triggerAbility === 'function') {
+            const leaveMsg = triggerAbility('onSwitchOut', attacker, defender, null, 0, CombatState);
+            if (leaveMsg) addCombatLog(leaveMsg);
+        }
+
         CombatState.activeEnemyIndex = availableSubIndex;
         const newEnemy = CombatState.enemyTeam[CombatState.activeEnemyIndex];
         addCombatLog(`🔄 ¡El rival retira a ${oldEnemyName} y saca a ${newEnemy.name}!`);
+
+        if (typeof triggerAbility === 'function') {
+            const eEnterMsg = triggerAbility('onEnter', newEnemy, defender, null, 0, CombatState);
+            if (eEnterMsg) addCombatLog(eEnterMsg);
+        }
         
         renderCombatArena();
         CombatState.turn = 'player';
@@ -456,10 +543,11 @@ function executeEnemyTurn() {
     defender.currentHp = Math.max(0, defender.currentHp - damageResult.damage);
     attacker.energy = Math.min(attacker.maxEnergy, attacker.energy + selectedMove.energyGain);
 
-    if (selectedMove.statusEffect && !defender.status && Math.random() < (selectedMove.statusChance || 0.2)) {
-        defender.status = selectedMove.statusEffect;
-        const statusNameEs = STATUS_TRANSLATIONS[selectedMove.statusEffect] || selectedMove.statusEffect;
-        addCombatLog(`🦠 ¡Tu ${defender.name} ha quedado ${statusNameEs}!`);
+    if (selectedMove.statusEffect && damageResult.damage > 0 && !defender.status) {
+        const chance = typeof abilityStatusChance === 'function'
+            ? abilityStatusChance(attacker, defender, selectedMove, selectedMove.statusChance || 0.2)
+            : (selectedMove.statusChance || 0.2);
+        if (Math.random() < chance) tryApplyStatus(defender, selectedMove.statusEffect, attacker);
     }
 
     triggerUnitAnimation('enemy-card', 'attack');
@@ -471,20 +559,21 @@ function executeEnemyTurn() {
     if (damageResult.effMessage) logText += ` (${damageResult.effMessage})`;
     addCombatLog(logText);
 
-    updateCombatUI();
+    // Habilidades de contacto, KO, etc.
+    if (typeof applyPostHitAbilities === 'function') applyPostHitAbilities(attacker, defender, selectedMove, damageResult);
 
-    if (defender.currentHp <= 0) {
-        setTimeout(handlePlayerFaint, 1000);
-    } else {
-        setTimeout(() => {
-            CombatState.turn = 'player';
-            updateCombatUI();
-        }, 1200);
-    }
+    updateCombatUI();
+    resolveAfterAction(defender, attacker, () => {
+        CombatState.turn = 'player';
+        updateCombatUI();
+    });
 }
 
 function endTurn() {
     if (CombatState.isBattleOver) return;
+
+    // Clima y terreno (tormentas, duración...)
+    if (typeof processFieldEndTurn === 'function') processFieldEndTurn();
 
     if (typeof triggerAbility === 'function') {
         const pTurnMsg = triggerAbility('onTurnEnd', CombatState.playerTeam[CombatState.activePlayerIndex], CombatState.enemyTeam[CombatState.activeEnemyIndex]);
@@ -494,52 +583,91 @@ function endTurn() {
         if (eTurnMsg) addCombatLog(eTurnMsg);
     }
 
+    // Alguien pudo debilitarse por el clima, un estado o una habilidad
+    const pUnit = CombatState.playerTeam[CombatState.activePlayerIndex];
+    const eUnit = CombatState.enemyTeam[CombatState.activeEnemyIndex];
+    if (pUnit.currentHp <= 0 || eUnit.currentHp <= 0) {
+        updateCombatUI();
+        resolveAfterAction(pUnit, eUnit, null);
+        return;
+    }
+
     CombatState.turn = 'enemy';
     updateCombatUI();
     setTimeout(executeEnemyTurn, 1000);
 }
 
 function calculateDamage(attacker, defender, move) {
-    const isCrit = Math.random() < 0.0625;
-    const critMult = isCrit ? 1.5 : 1.0;
+    const engine = typeof abilityModifyMove === 'function';
+    if (engine) { ensureUnit(attacker); ensureUnit(defender); }
 
-    const atkType = move.type || attacker.type || 'Normal';
-    const elementMult = getTypeEffectiveness(atkType, defender);
+    // Habilidades que cambian el ataque (Normalidad, Piel Feérica...)
+    const mv = engine ? abilityModifyMove(attacker, defender, move) : { ...move, powerMult: 1 };
+    const atkType = mv.type || move.type || attacker.type || 'Normal';
+
+    const critInfo = engine ? abilityCritInfo(attacker, defender) : { rate: 0.0625, mult: 1.5, blocked: false };
+    const isCrit = !critInfo.blocked && Math.random() < critInfo.rate;
+    const critMult = isCrit ? critInfo.mult : 1.0;
+
+    let elementMult = getTypeEffectiveness(atkType, defender);
+    if (engine) elementMult = abilityAdjustEffectiveness(attacker, defender, atkType, elementMult);
     const effInfo = getEffectivenessLabel(elementMult);
 
     if (elementMult === 0) {
-        return { damage: 0, isCrit: false, effMessage: effInfo.text, elementMult };
+        return { damage: 0, isCrit: false, effMessage: effInfo.text, elementMult, moveType: atkType };
     }
 
-    let atkStat = move.isSpecial ? attacker.spAtk : attacker.attack;
-    const defStat = move.isSpecial ? defender.spDef : defender.defense;
+    // Cambios de estadísticas en combate (Intimidación, Descarga, Autoestima...)
+    const aMods = attacker.mods || { atk: 1, spAtk: 1, spd: 1 };
+    const dMods = defender.mods || { def: 1, spDef: 1 };
+    const ignoreDefMods = engine && ignoresFoeMods(attacker);
+    const ignoreAtkMods = engine && ignoresFoeMods(defender);
+
+    let atkStat = move.isSpecial
+        ? attacker.spAtk * (ignoreAtkMods ? 1 : aMods.spAtk)
+        : attacker.attack * (ignoreAtkMods ? 1 : aMods.atk);
+    const defStat = Math.max(1, move.isSpecial
+        ? defender.spDef * (ignoreDefMods ? 1 : dMods.spDef)
+        : defender.defense * (ignoreDefMods ? 1 : dMods.def));
 
     if (attacker.status === "burned" && !move.isSpecial) {
         atkStat = Math.floor(atkStat * 0.5);
     }
 
-    const hasSTAB = attacker.types && attacker.types.includes(atkType) ? 1.5 : 1.0;
+    const hasSTAB = engine ? abilityStabMult(attacker, atkType) : (attacker.types && attacker.types.includes(atkType) ? 1.5 : 1.0);
+    const speedBonus = 1 + (((aMods.spd || 1) - 1) * 0.5);
+    const fieldMult = engine ? fieldDamageMult(atkType) : 1;
+
+    if (fieldMult === 0) {
+        return { damage: 0, isCrit: false, effMessage: '🌦️ El clima lo anula', elementMult, moveType: atkType };
+    }
+
+    const power = move.power * (mv.powerMult || 1);
     const levelFactor = ((2 * attacker.level) / 5) + 2;
-    const baseDamage = ((levelFactor * move.power * (atkStat / defStat)) / 50) + 2;
+    const baseDamage = ((levelFactor * power * (atkStat / defStat)) / 50) + 2;
     const variation = (Math.floor(Math.random() * 16) + 85) / 100;
 
-    let finalDamage = Math.max(1, Math.floor(baseDamage * critMult * elementMult * hasSTAB * variation));
+    let finalDamage = Math.max(1, Math.floor(baseDamage * critMult * elementMult * hasSTAB * variation * fieldMult * speedBonus));
 
+    // Habilidades del atacante y del defensor
     if (typeof triggerAbility === 'function') {
-        const atkAbility = triggerAbility('onDamage', attacker, defender, move, finalDamage, CombatState);
+        const ctx = { elementMult, isCrit, moveType: atkType, contact: engine ? isContactMove(mv, attacker) : !move.isSpecial };
+        const moveInfo = { ...mv, type: atkType };
+
+        const atkAbility = triggerAbility('onDamage', attacker, defender, moveInfo, finalDamage, CombatState, ctx);
         if (atkAbility) {
             finalDamage = atkAbility.damage;
             if (atkAbility.message) addCombatLog(atkAbility.message);
         }
 
-        const defAbility = triggerAbility('onReceiveDamage', defender, attacker, move, finalDamage, CombatState);
+        const defAbility = triggerAbility('onReceiveDamage', defender, attacker, moveInfo, finalDamage, CombatState, ctx);
         if (defAbility) {
             finalDamage = defAbility.damage;
             if (defAbility.message) addCombatLog(defAbility.message);
         }
     }
 
-    return { damage: finalDamage, isCrit, effMessage: effInfo.text, elementMult };
+    return { damage: finalDamage, isCrit, effMessage: effInfo.text, elementMult, moveType: atkType };
 }
 
 // =========================================
@@ -598,6 +726,22 @@ window.executeTeamSwitch = function(newIndex) {
     const newPokemon = CombatState.playerTeam[newIndex];
 
     if (!newPokemon || newPokemon.currentHp <= 0 || newIndex === CombatState.activePlayerIndex) return;
+
+    // Sombra Trampa, Trampa Arena, Imán: impiden el cambio
+    if (typeof abilityTrapMessage === 'function') {
+        const trapMsg = abilityTrapMessage(oldPokemon);
+        if (trapMsg) {
+            addCombatLog(trapMsg);
+            updateCombatUI();
+            return;
+        }
+    }
+
+    // Habilidades al salir (Cura Natural, Regeneración...)
+    if (typeof triggerAbility === 'function') {
+        const leaveMsg = triggerAbility('onSwitchOut', oldPokemon, CombatState.enemyTeam[CombatState.activeEnemyIndex], null, 0, CombatState);
+        if (leaveMsg) addCombatLog(leaveMsg);
+    }
 
     CombatState.activePlayerIndex = newIndex;
     addCombatLog(`🔄 ¡Retiramos a ${oldPokemon.name}, adelante ${newPokemon.name}!`);
@@ -1123,6 +1267,25 @@ function updateCombatUI() {
     const switchButton = document.querySelector('.btn-switch-action');
     if (switchButton) {
         switchButton.disabled = CombatState.turn !== 'player' || CombatState.isBattleOver;
+    }
+
+    // Indicador de clima y terreno
+    const arenaElem = document.querySelector('.combat-arena');
+    if (arenaElem && arenaElem.parentNode) {
+        let badge = document.getElementById('field-badge');
+        if (!badge) {
+            badge = document.createElement('div');
+            badge.id = 'field-badge';
+            badge.style.cssText = 'text-align: center; font-size: 13px; color: #fbbf24; margin-bottom: 6px; font-weight: 700;';
+            arenaElem.parentNode.insertBefore(badge, arenaElem);
+        }
+        const weatherNames = { rain: '🌧️ Lluvia', sun: '☀️ Sol', sand: '🌪️ Tormenta de arena', snow: '❄️ Nevada', 'harsh-sun': '🔥 Sol abrasador', 'heavy-rain': '🌊 Lluvia torrencial', wind: '💨 Vientos' };
+        const terrainNames = { electric: '⚡ Campo eléctrico', grassy: '🌿 Campo de hierba', misty: '🌫️ Campo de niebla', psychic: '🔮 Campo psíquico' };
+        const parts = [];
+        if (CombatState.weather) parts.push(weatherNames[CombatState.weather] || CombatState.weather);
+        if (CombatState.terrain) parts.push(terrainNames[CombatState.terrain] || CombatState.terrain);
+        badge.textContent = parts.join('  ·  ');
+        badge.style.display = parts.length ? 'block' : 'none';
     }
 
     const logBox = document.getElementById('combat-log-box');

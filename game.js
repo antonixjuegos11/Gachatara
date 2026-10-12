@@ -454,6 +454,7 @@ function openPokemonModal(pokemonId) {
     if (typeof getAbilityDisplayName === 'function') {
         abilityName = getAbilityDisplayName(pkmn.ability);
     }
+    const abilityDesc = typeof getAbilityDescription === 'function' ? getAbilityDescription(pkmn.ability) : '';
 
     const nextCost = getDupeCostForNextStar(pkmn.stars);
     const coinCost = getCoinCostForNextStar(pkmn.stars);
@@ -511,6 +512,7 @@ function openPokemonModal(pokemonId) {
 
                 <div class="modal-ability-info" style="margin-top: 8px;">
                     <p>✨ <strong>Habilidad:</strong> ${abilityName}</p>
+                    ${abilityDesc ? `<p style="font-size: 12px; color: #94a3b8; margin-top: 2px;">${abilityDesc}</p>` : ''}
                 </div>
             </div>
         </div>
