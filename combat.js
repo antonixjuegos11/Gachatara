@@ -210,7 +210,7 @@ function prepareCombatUnit(pkmn, level = 1) {
     };
 }
 
-function startBattle(playerUnits, enemyUnits, mode = 'quick', onEndCallback = null) {
+function startBattle(playerUnits, enemyUnits, mode = 'quick', onEndCallback = null, options = {}) {
     let resolvedTeam = playerUnits;
     if (!resolvedTeam || resolvedTeam.length === 0) {
         const activeStrategyKey = 'pokemon_active_team_strategy';
@@ -255,6 +255,10 @@ function startBattle(playerUnits, enemyUnits, mode = 'quick', onEndCallback = nu
     CombatState.isBattleOver = false;
     CombatState.mode = mode;
     CombatState.onBattleEndCallback = onEndCallback;
+    CombatState.double = false;
+    CombatState.options = options || {};
+    CombatState.rankedResult = null;
+    CombatState.currentFoe = null;
     CombatState.logHistory = [];
     CombatState.weather = null;
     CombatState.weatherTurns = 0;
@@ -271,10 +275,14 @@ function startBattle(playerUnits, enemyUnits, mode = 'quick', onEndCallback = nu
     addCombatLog(`${pActive.name} vs ${eActive.name}`);
 
     if (typeof triggerAbility === 'function') {
-        const pEnterMsg = triggerAbility('onEnter', pActive, eActive, null, 0, CombatState);
+        // Primero se reinician los dos activos y luego se aplican las habilidades de entrada
+        // (así la Intimidación del primero no se borra al entrar el segundo)
+        if (typeof resetUnitForEntry === 'function') { resetUnitForEntry(pActive); resetUnitForEntry(eActive); }
+
+        const pEnterMsg = triggerAbility('onEnter', pActive, eActive, null, 0, CombatState, { noReset: true });
         if (pEnterMsg) addCombatLog(pEnterMsg);
 
-        const eEnterMsg = triggerAbility('onEnter', eActive, pActive, null, 0, CombatState);
+        const eEnterMsg = triggerAbility('onEnter', eActive, pActive, null, 0, CombatState, { noReset: true });
         if (eEnterMsg) addCombatLog(eEnterMsg);
     }
 
@@ -872,7 +880,11 @@ function finishBattle(hasPlayerWon) {
     CombatState.turn = 'none';
 
     // Estadísticas del perfil del jugador
-    if (typeof recordBattleResult === 'function') recordBattleResult(hasPlayerWon, CombatState.mode);
+    if (typeof recordBattleResult === 'function') recordBattleResult(hasPlayerWon, CombatState.mode, CombatState.options);
+
+    // Clasificatorio: puntos y rango
+    const opts = CombatState.options || {};
+    CombatState.rankedResult = (opts.ranked && typeof applyRankedResult === 'function') ? applyRankedResult(opts.ranked, hasPlayerWon) : null;
 
     // 1. Mostrar la animación/cartel grande en pantalla
     showBattleResultOverlay(hasPlayerWon);
@@ -887,6 +899,7 @@ function finishBattle(hasPlayerWon) {
 
         if (CombatState.mode === 'story') coinReward = 250;
         if (CombatState.mode === 'ranked') { coinReward = 300; ticketReward = 1; }
+        if (opts.rewardCoins) coinReward = opts.rewardCoins;
 
         currencies.coins = (currencies.coins || 0) + coinReward;
         currencies.tickets = (currencies.tickets || 0) + ticketReward;
@@ -896,7 +909,7 @@ function finishBattle(hasPlayerWon) {
         }
 
         // 2. Distribuir XP y recopilar el resumen de progresión de TODO el equipo
-        const levelUpsSummary = applyBattleXp(CombatState.playerTeam, 50);
+        const levelUpsSummary = opts.noXp ? [] : applyBattleXp(CombatState.playerTeam, 50);
 
         if (typeof saveStorage === 'function') saveStorage();
         if (typeof saveInventory === 'function') saveInventory();
@@ -992,6 +1005,7 @@ function showPostBattleModal(hasWon, coins, tickets, levelUps) {
     if (existing) existing.remove();
 
     levelUps = levelUps || [];
+    const noXp = !!(CombatState.options && CombatState.options.noXp);
     const subidas = levelUps.filter(l => l.leveledUp);
 
     const subidasHtml = subidas.length > 0
@@ -1029,14 +1043,16 @@ function showPostBattleModal(hasWon, coins, tickets, levelUps) {
                 <div class="rewards-box">
                     <h4>🎁 Recompensas Obtenidas:</h4>
                     <p>🪙 +${coins} Monedas</p>${tickets > 0 ? `<p>🎟️ +${tickets} Ticket(s)</p>` : ''}
-                    <p>⭐ +50 XP para todo el equipo</p>
+                    ${noXp ? '' : '<p>⭐ +50 XP para todo el equipo</p>'}
                 </div>
-                <div class="levelup-box">
+                ${noXp ? '' : `<div class="levelup-box">
                     <h4>📈 Progresión:</h4>
                     ${subidasHtml}
                     <div style="margin-top:8px; max-height:220px; overflow-y:auto;">${barrasHtml}</div>
-                </div>
+                </div>`}
             ` : ''}
+
+            ${typeof getRankedResultHtml === 'function' ? getRankedResultHtml() : ''}
 
             <button class="btn-close-post-battle" onclick="closePostBattleAndReturn('${hasWon}')">Continuar</button>
         </div>
@@ -1219,6 +1235,11 @@ function renderCombatArena() {
 }
 
 function updateCombatUI() {
+    if (CombatState.double && typeof updateDoubleUI === 'function') {
+        updateDoubleUI();
+        return;
+    }
+
     const player = CombatState.playerTeam[CombatState.activePlayerIndex];
     const enemy = CombatState.enemyTeam[CombatState.activeEnemyIndex];
 

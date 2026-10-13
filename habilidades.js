@@ -271,11 +271,34 @@ function isContactMove(move, attacker) { return !!move && !move.isSpecial && mov
 function activePlayerUnit() { return CombatState.playerTeam[CombatState.activePlayerIndex]; }
 function activeEnemyUnit() { return CombatState.enemyTeam[CombatState.activeEnemyIndex]; }
 
+// Unidades activas de cada bando (1 en combates normales, hasta 2 en dobles)
+function activePlayerUnits() {
+    if (CombatState.double && CombatState.activePlayerIndices) {
+        return CombatState.activePlayerIndices.map(i => CombatState.playerTeam[i]).filter(Boolean);
+    }
+    return [activePlayerUnit()].filter(Boolean);
+}
+function activeEnemyUnits() {
+    if (CombatState.double && CombatState.activeEnemyIndices) {
+        return CombatState.activeEnemyIndices.map(i => CombatState.enemyTeam[i]).filter(Boolean);
+    }
+    return [activeEnemyUnit()].filter(Boolean);
+}
+
+// Rival de una unidad. En dobles es el objetivo actual (CombatState.currentFoe) o el primer rival vivo
 function foeOf(unit) {
     if (typeof CombatState === 'undefined' || !unit) return null;
-    if (CombatState.playerTeam.includes(unit)) return activeEnemyUnit() || null;
-    if (CombatState.enemyTeam.includes(unit)) return activePlayerUnit() || null;
-    return null;
+    const isPlayer = CombatState.playerTeam.includes(unit);
+    const isEnemy = CombatState.enemyTeam.includes(unit);
+    if (!isPlayer && !isEnemy) return null;
+
+    const foes = isPlayer ? activeEnemyUnits() : activePlayerUnits();
+    if (CombatState.double) {
+        const t = CombatState.currentFoe;
+        if (t && foes.includes(t) && t.currentHp > 0) return t;
+        return foes.find(u => u.currentHp > 0) || foes[0] || null;
+    }
+    return foes[0] || null;
 }
 
 function teamOf(unit) {
@@ -405,7 +428,7 @@ function setTerrain(type, turns = 5) {
 function weatherNow() {
     const st = CombatState;
     if (!st || !st.weather) return null;
-    const act = [activePlayerUnit(), activeEnemyUnit()];
+    const act = [...activePlayerUnits(), ...activeEnemyUnits()];
     if (act.some(u => u && u.currentHp > 0 && (abKey(u) === 'cloud-nine' || abKey(u) === 'air-lock') && !suppressed(u))) return null;
     return st.weather;
 }
@@ -442,7 +465,7 @@ function weatherChipImmune(unit, w) {
 // Se ejecuta al final de cada turno: duración del clima/terreno y daño de la tormenta
 function processFieldEndTurn() {
     const st = CombatState;
-    const units = [activePlayerUnit(), activeEnemyUnit()].filter(u => u && u.currentHp > 0);
+    const units = [...activePlayerUnits(), ...activeEnemyUnits()].filter(u => u && u.currentHp > 0);
     const w = weatherNow();
 
     if (w === 'sand' || w === 'snow') {
@@ -1236,14 +1259,23 @@ defineAbility(['aroma-veil', 'multitype', 'rks-system', 'mimicry', 'dancer', 're
 // DISPATCHER PRINCIPAL
 // =========================================================
 
-function abilityEnter(owner, foe, st) {
-    resetUnitForEntry(owner);
+function abilityEnter(owner, foe, st, noReset) {
+    if (!noReset) resetUnitForEntry(owner);
     const key = abKey(owner);
     if (!key || key === 'none') return null;
     if (!AB[key]) return `✨ ¡${owner.name} despliega su habilidad ${getAbilityDisplayName(key)}!`;
     const h = handlerOf(owner);
     if (h && h.enter) return h.enter(owner, foe, st || CombatState) || null;
     return null;
+}
+
+// Habilidades de entrada que afectan al rival (Intimidación...): en dobles se repiten sobre el segundo rival
+['intimidate', 'frisk', 'forewarn', 'anticipation', 'screen-cleaner', 'supersweet-syrup', 'unnerve', 'as-one-glastrier', 'as-one-spectrier']
+    .forEach(k => { if (AB[k]) AB[k].targetsFoes = true; });
+
+function abilityEnterExtraFoe(owner, foe) {
+    const h = handlerOf(owner);
+    return (h && h.targetsFoes && h.enter) ? (h.enter(owner, foe, CombatState) || null) : null;
 }
 
 function abilityTurnEnd(owner, foe, st) {
@@ -1271,7 +1303,7 @@ function triggerAbility(triggerType, owner, target, move = null, damage = 0, bat
     if (target) ensureUnit(target);
 
     switch (triggerType) {
-        case 'onEnter': return abilityEnter(owner, target, battleState);
+        case 'onEnter': return abilityEnter(owner, target, battleState, extra && extra.noReset);
         case 'onTurnEnd': return abilityTurnEnd(owner, target, battleState);
         case 'onDamage': return runDamageHook('atk', owner, target, move, damage, extra);
         case 'onReceiveDamage': return runDamageHook('def', owner, target, move, damage, extra);

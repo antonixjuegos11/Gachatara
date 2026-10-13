@@ -93,8 +93,18 @@ const playerCollection = new Set(savedDex);
 let userInventory = JSON.parse(localStorage.getItem(INVENTORY_KEY) || '[]');
 let activeTeamStrategy = JSON.parse(localStorage.getItem(ACTIVE_TEAM_STRATEGY_KEY) || '[]'); // Máx 6
 let activeTeamFast = JSON.parse(localStorage.getItem(ACTIVE_TEAM_FAST_KEY) || '[]'); // Máx 3
+const ACTIVE_TEAM_QUAD_KEY = 'pokemon_active_team_quad';
+let activeTeamQuad = JSON.parse(localStorage.getItem(ACTIVE_TEAM_QUAD_KEY) || '[]'); // Máx 4 (combate doble 4v4)
 
-let currentTeamMode = 'strategy'; // 'strategy' (6) o 'fast' (3)
+let currentTeamMode = 'strategy'; // 'strategy' (6), 'fast' (3) o 'quad' (4)
+
+function getTeamArray(mode) {
+    if (mode === 'strategy') return activeTeamStrategy;
+    if (mode === 'quad') return activeTeamQuad;
+    return activeTeamFast;
+}
+function getTeamMax(mode) { return mode === 'strategy' ? 6 : (mode === 'quad' ? 4 : 3); }
+function getTeamLabel(mode) { return mode === 'strategy' ? 'Estratégico' : (mode === 'quad' ? 'Doble' : 'Rápido'); }
 
 function switchTeamMode(mode, event) {
     currentTeamMode = mode;
@@ -131,6 +141,7 @@ function saveStorage() {
     localStorage.setItem(INVENTORY_KEY, JSON.stringify(userInventory));
     localStorage.setItem(ACTIVE_TEAM_STRATEGY_KEY, JSON.stringify(activeTeamStrategy));
     localStorage.setItem(ACTIVE_TEAM_FAST_KEY, JSON.stringify(activeTeamFast));
+    localStorage.setItem(ACTIVE_TEAM_QUAD_KEY, JSON.stringify(activeTeamQuad));
 }
 
 // Añadir Pokémon al inventario
@@ -176,7 +187,7 @@ function addPokemonToInventory(pkmn) {
 
 // Renderizar los slots del equipo activo superior
 function moveTeamMember(fromIndex, toIndex) {
-    const currentTeam = currentTeamMode === 'strategy' ? activeTeamStrategy : activeTeamFast;
+    const currentTeam = getTeamArray(currentTeamMode);
     if (fromIndex === toIndex || fromIndex < 0 || fromIndex >= currentTeam.length) return;
 
     // Soltar en un hueco vacío = colocar al final del equipo
@@ -196,8 +207,8 @@ function renderActiveTeamSlots() {
     if (!slotsContainer) return;
 
     slotsContainer.innerHTML = '';
-    const maxSlots = currentTeamMode === 'strategy' ? 6 : 3;
-    const currentTeam = currentTeamMode === 'strategy' ? activeTeamStrategy : activeTeamFast;
+    const maxSlots = getTeamMax(currentTeamMode);
+    const currentTeam = getTeamArray(currentTeamMode);
 
     for (let i = 0; i < maxSlots; i++) {
         const pkmn = currentTeam[i];
@@ -270,19 +281,15 @@ function renderActiveTeamSlots() {
 }
 
 function removePokemonFromTeam(index) {
-    if (currentTeamMode === 'strategy') {
-        activeTeamStrategy.splice(index, 1);
-    } else {
-        activeTeamFast.splice(index, 1);
-    }
+    getTeamArray(currentTeamMode).splice(index, 1);
     saveStorage();
     renderActiveTeamSlots();
     renderInventory();
 }
 
 function togglePokemonInTeam(pkmn) {
-    const currentTeam = currentTeamMode === 'strategy' ? activeTeamStrategy : activeTeamFast;
-    const maxSlots = currentTeamMode === 'strategy' ? 6 : 3;
+    const currentTeam = getTeamArray(currentTeamMode);
+    const maxSlots = getTeamMax(currentTeamMode);
 
     const existingIndex = currentTeam.findIndex(item => Number(item.id) === Number(pkmn.id));
 
@@ -290,7 +297,7 @@ function togglePokemonInTeam(pkmn) {
         currentTeam.splice(existingIndex, 1);
     } else {
         if (currentTeam.length >= maxSlots) {
-            alert(`¡El equipo ${currentTeamMode === 'strategy' ? 'Estratégico' : 'Rápido'} ya está lleno (${maxSlots}/${maxSlots})!`);
+            alert(`¡El equipo ${getTeamLabel(currentTeamMode)} ya está lleno (${maxSlots}/${maxSlots})!`);
             return;
         }
         currentTeam.push(pkmn);
@@ -353,7 +360,7 @@ function renderInventory() {
         return;
     }
 
-    const currentTeam = currentTeamMode === 'strategy' ? activeTeamStrategy : activeTeamFast;
+    const currentTeam = getTeamArray(currentTeamMode);
     const sortedInventory = [...userInventory]
         .sort((a, b) => Number(a.id) - Number(b.id))
         .filter(matchesInventoryFilter);
@@ -517,6 +524,8 @@ function openPokemonModal(pokemonId) {
             </div>
         </div>
 
+        ${typeof getSkinRowHtml === 'function' ? getSkinRowHtml(pkmn) : ''}
+
         ${typeof openSkillTree === 'function' ? `
         <button id="st-open-btn" onclick="openSkillTree(${pkmn.id})" style="width: 100%; margin-bottom: 12px; background: linear-gradient(135deg, #0ea5e9, #6366f1); color: white; border: none; padding: 10px 20px; font-size: 14px; font-weight: bold; border-radius: 8px; cursor: pointer;">
             🌳 Árbol de Habilidades ${pendingPerks > 0 ? `<span style="background: #fbbf24; color: #0f172a; border-radius: 10px; padding: 1px 8px; margin-left: 6px;">${pendingPerks} nuevo(s)</span>` : ''}
@@ -660,6 +669,10 @@ function switchTab(tabId, event) {
     if (tabId !== 'invocacion') {
         const resultsContainer = document.getElementById('gacha-results');
         if (resultsContainer) resultsContainer.innerHTML = '';
+    }
+
+    if (tabId === 'combate' && typeof renderCombatMenu === 'function' && !(typeof CombatState !== 'undefined' && CombatState.playerTeam && CombatState.playerTeam.length && !CombatState.isBattleOver)) {
+        renderCombatMenu();
     }
 
     if (tabId === 'tienda' && typeof renderShop === 'function') {

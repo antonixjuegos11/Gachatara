@@ -9,7 +9,7 @@ function getProfile() {
         name: saved.name || 'Entrenador',
         avatarId: saved.avatarId || null,
         title: saved.title || null,
-        stats: Object.assign({ battles: 0, wins: 0, losses: 0, quick: 0, strategy: 0, streak: 0, bestStreak: 0 }, saved.stats || {})
+        stats: Object.assign({ battles: 0, wins: 0, losses: 0, quick: 0, strategy: 0, double: 0, ranked: 0, streak: 0, bestStreak: 0 }, saved.stats || {})
     };
 }
 
@@ -18,7 +18,7 @@ function saveProfile(profile) {
 }
 
 // Se llama desde finishBattle() al terminar cada combate
-function recordBattleResult(hasWon, mode) {
+function recordBattleResult(hasWon, mode, options) {
     const profile = getProfile();
     const s = profile.stats;
     s.battles += 1;
@@ -30,7 +30,10 @@ function recordBattleResult(hasWon, mode) {
         s.losses += 1;
         s.streak = 0;
     }
-    if (mode === 'strategy') s.strategy += 1; else s.quick += 1;
+    if (options && options.format === 'double') s.double += 1;
+    else if (mode === 'strategy') s.strategy += 1;
+    else s.quick += 1;
+    if (mode === 'ranked') s.ranked += 1;
     saveProfile(profile);
     renderProfileChip();
 }
@@ -185,7 +188,15 @@ function renderProfileModal() {
                 <div class="pf-stat"><b>${s.bestStreak}</b><span>Mejor racha</span></div>
                 <div class="pf-stat"><b>${s.quick}</b><span>Partidas rápidas</span></div>
                 <div class="pf-stat"><b>${s.strategy}</b><span>Partidas estratégicas</span></div>
+                <div class="pf-stat"><b>${s.double}</b><span>Combates dobles</span></div>
+                <div class="pf-stat"><b>${s.ranked}</b><span>Clasificatorios</span></div>
             </div>
+
+            ${typeof getRankedState === 'function' ? `
+            <h3>🏅 Rangos clasificatorios</h3>
+            <div class="pf-stats">
+                ${['single', 'double'].map(k => { const r = getRankedState()[k]; return `<div class="pf-stat">${rankImageHtml(r.rank, 32)}<b style="font-size: 14px;">${RANKS[r.rank].name}</b><span>${RANKED_KINDS[k].name} · ${r.points} pts</span></div>`; }).join('')}
+            </div>` : ''}
 
             <h3>📖 Estadísticas de Pokémon</h3>
             <div class="pf-stats">
