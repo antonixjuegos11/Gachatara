@@ -69,12 +69,12 @@ const TEAM_KEY_QUAD = 'pokemon_active_team_quad';
 const RANKED_LEVEL = 50;
 
 const MODE_CONFIG = {
-    'quick':         { format: 'single', teamKey: TEAM_KEY_FAST,     teamName: 'Equipo Rápido',      size: 3, battleMode: 'quick',    options: {} },
-    'strategy':      { format: 'single', teamKey: TEAM_KEY_STRATEGY, teamName: 'Equipo Estratégico', size: 6, battleMode: 'strategy', options: {} },
-    'double6':       { format: 'double', teamKey: TEAM_KEY_STRATEGY, teamName: 'Equipo Estratégico', size: 6, battleMode: 'double',   options: { rewardCoins: 200 } },
-    'double4':       { format: 'double', teamKey: TEAM_KEY_QUAD,     teamName: 'Equipo Doble (4)',   size: 4, battleMode: 'double',   options: { rewardCoins: 150 } },
-    'ranked-single': { format: 'single', teamKey: TEAM_KEY_STRATEGY, teamName: 'Equipo Estratégico', size: 6, battleMode: 'ranked',   ranked: 'single', fixedLevel: RANKED_LEVEL, options: {} },
-    'ranked-double': { format: 'double', teamKey: TEAM_KEY_STRATEGY, teamName: 'Equipo Estratégico', size: 6, battleMode: 'ranked',   ranked: 'double', fixedLevel: RANKED_LEVEL, options: {} }
+    'quick':         { label: 'Combate normal 3 vs 3', format: 'single', teamKey: TEAM_KEY_FAST,     teamName: 'Equipo Rápido',      size: 3, battleMode: 'quick',    options: {} },
+    'strategy':      { label: 'Combate normal 6 vs 6', format: 'single', teamKey: TEAM_KEY_STRATEGY, teamName: 'Equipo Estratégico', size: 6, battleMode: 'strategy', options: {} },
+    'double6':       { label: 'Combate doble 6 vs 6', format: 'double', teamKey: TEAM_KEY_STRATEGY, teamName: 'Equipo Estratégico', size: 6, battleMode: 'double',   options: { rewardCoins: 200 } },
+    'double4':       { label: 'Combate doble 4 vs 4', format: 'double', teamKey: TEAM_KEY_QUAD,     teamName: 'Equipo Doble (4)',   size: 4, battleMode: 'double',   options: { rewardCoins: 150 } },
+    'ranked-single': { label: 'Clasificatorio individual 6 vs 6', format: 'single', teamKey: TEAM_KEY_STRATEGY, teamName: 'Equipo Estratégico', size: 6, battleMode: 'ranked',   ranked: 'single', fixedLevel: RANKED_LEVEL, options: {} },
+    'ranked-double': { label: 'Clasificatorio doble 6 vs 6', format: 'double', teamKey: TEAM_KEY_STRATEGY, teamName: 'Equipo Estratégico', size: 6, battleMode: 'ranked',   ranked: 'double', fixedLevel: RANKED_LEVEL, options: {} }
 };
 
 // Rivales del clasificatorio: nivel fijo y estrellas según el rango del jugador
@@ -117,20 +117,38 @@ function startMode(modeId) {
     if (cfg.format === 'single' && typeof startBattle !== 'function') { console.error('startBattle no está disponible.'); return; }
     if (cfg.format === 'double' && typeof startDoubleBattle !== 'function') { console.error('startDoubleBattle no está disponible.'); return; }
 
-    let enemyTeam;
     if (cfg.fixedLevel) {
         // Competitivo: todos a nivel 50
         team = team.map(p => ({ ...p, level: cfg.fixedLevel }));
-        enemyTeam = generateRankedEnemyTeam(cfg.size, cfg.ranked);
-    } else {
-        enemyTeam = generateEnemyTeam(cfg.size, getTopTeamLevel(team));
     }
 
-    const options = Object.assign({}, cfg.options, { format: cfg.format, ranked: cfg.ranked || null, noXp: !!cfg.fixedLevel });
-    const onEnd = (hasWon) => {
+    // Online (buscar rival 20 s) o directamente contra bot
+    if (typeof isOnlineEnabled === 'function' && isOnlineEnabled() && typeof findOnlineOpponent === 'function') {
+        startOnlineOrBot(modeId, cfg, team);
+    } else {
+        startBotMatch(cfg, team);
+    }
+}
+
+function buildBattleOptions(cfg) {
+    return Object.assign({}, cfg.options, { format: cfg.format, ranked: cfg.ranked || null, noXp: !!cfg.fixedLevel });
+}
+
+function buildOnEnd(team) {
+    return (hasWon) => {
         if (hasWon) awardTeamExperience(team);
         setCombatMenuVisible(true);
     };
+}
+
+// Combate contra el bot (rivales generados)
+function startBotMatch(cfg, team) {
+    const enemyTeam = cfg.fixedLevel
+        ? generateRankedEnemyTeam(cfg.size, cfg.ranked)
+        : generateEnemyTeam(cfg.size, getTopTeamLevel(team));
+
+    const options = Object.assign(buildBattleOptions(cfg), { opponentName: '🤖 Bot' });
+    const onEnd = buildOnEnd(team);
 
     setCombatMenuVisible(false);
 
@@ -139,7 +157,40 @@ function startMode(modeId) {
         if (!started) setCombatMenuVisible(true);
     } else {
         startBattle(team, enemyTeam, cfg.battleMode, onEnd, options);
+        addCombatLog('🆚 Rival: 🤖 Bot');
     }
+}
+
+let onlineSearchInProgress = false;
+
+// Busca rival humano durante 20 s; si no aparece (o el servidor no está disponible) juega contra un bot
+async function startOnlineOrBot(modeId, cfg, team) {
+    if (onlineSearchInProgress) return;
+    onlineSearchInProgress = true;
+
+    const ui = showSearchOverlay(cfg.label);
+    let res;
+    try {
+        res = await findOnlineOpponent(modeId, team, ui);
+    } catch (e) {
+        res = { status: 'unavailable' };
+    }
+    ui.close();
+    onlineSearchInProgress = false;
+
+    if (res.status === 'cancelled') return;
+
+    if (res.status === 'matched') {
+        setCombatMenuVisible(false);
+        const started = startOnlineBattle(cfg, team, res, buildBattleOptions(cfg), buildOnEnd(team));
+        if (started === false) setCombatMenuVisible(true);
+        return;
+    }
+
+    showOnlineToast(res.status === 'timeout'
+        ? '😕 No se encontró ningún rival en 20 s: jugarás contra un bot.'
+        : '📴 Online no disponible ahora mismo: jugarás contra un bot.');
+    startBotMatch(cfg, team);
 }
 
 // Accesos antiguos (el botón del lobby y otros)
@@ -169,6 +220,10 @@ function renderCombatMenu() {
     menu.innerHTML = `
         <div style="text-align: center; padding: 10px;">
             <h2 style="font-family: 'Orbitron', sans-serif; color: #00f2fe; margin-bottom: 4px;">MODOS DE COMBATE</h2>
+            <label style="display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: #cbd5e1; cursor: pointer; background: rgba(0,242,254,0.07); border: 1px solid rgba(0,242,254,0.3); border-radius: 20px; padding: 6px 14px; margin-top: 6px;">
+                <input type="checkbox" ${typeof isOnlineEnabled === 'function' && isOnlineEnabled() ? 'checked' : ''} onchange="setOnlinePref(this.checked)">
+                🌐 Buscar rival online (20 s; si no hay, juegas contra un bot)
+            </label>
 
             ${sectionTitle('⚔️ COMBATE NORMAL')}
             <div class="gacha-buttons" style="${row}">

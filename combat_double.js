@@ -11,12 +11,31 @@ const DoubleCombat = {
     cursor: 0,
     queue: [],
     pending: null,     // índice del movimiento esperando objetivo
-    switching: false
+    switching: false,
+    deadline: 0,       // límite de tiempo para elegir (solo online)
+    timerToken: 0,
+    statusText: ''     // texto mientras se espera (solo online)
 };
 
 // ---------- Utilidades ----------
 
 function dblAlive(u) { return !!u && u.currentHp > 0; }
+
+// Los mensajes del registro usan marcas ⟦lado:Nombre⟧ para poder verse desde el punto de vista de cada jugador
+function dblT(u) { return `⟦${CombatState.playerTeam.includes(u) ? 'p' : 'e'}:${u.name}⟧`; }
+function formatDblLog(str) {
+    return String(str).replace(/⟦([pe]):([^⟧]*)⟧/g, (m, side, name) => side === 'p' ? name : `${name} rival`);
+}
+function dblSlotsPerSide() { return (CombatState.options && CombatState.options.slots) || 2; }
+function dblIsNetHost() { return !!(CombatState.net && CombatState.net.role === 'host'); }
+function dblIsNetGuest() { return !!(CombatState.net && CombatState.net.role === 'guest'); }
+
+// Termina el combate (el anfitrión online publica antes el resultado para el invitado)
+function dblConclude(playerWon) {
+    if (CombatState.isBattleOver) return;
+    if (dblIsNetHost() && typeof netPublishFinal === 'function') netPublishFinal(playerWon);
+    finishBattle(playerWon);
+}
 
 function dblIndices(side) { return side === 'p' ? CombatState.activePlayerIndices : CombatState.activeEnemyIndices; }
 function dblTeam(side) { return side === 'p' ? CombatState.playerTeam : CombatState.enemyTeam; }
@@ -56,23 +75,26 @@ function dblEnter(unit, noReset) {
 // ---------- Inicio ----------
 
 function startDoubleBattle(playerUnits, enemyUnits, mode = 'double', onEndCallback = null, options = {}) {
+    options = options || {};
+    const slots = options.slots || 2;
     const team = (playerUnits || []).map(p => prepareCombatUnit(p, p.level || 1)).filter(u => u && u.currentHp > 0);
-    if (team.length < 2) {
-        alert('¡Necesitas al menos 2 Pokémon con vida en el equipo para un combate doble!');
+    if (team.length < slots) {
+        alert(slots === 2 ? '¡Necesitas al menos 2 Pokémon con vida en el equipo para un combate doble!' : '¡Necesitas al menos 1 Pokémon con vida en el equipo!');
         return false;
     }
 
     CombatState.playerTeam = team;
     CombatState.enemyTeam = (enemyUnits || []).map(p => prepareCombatUnit(p, p.level || 1));
     CombatState.double = true;
-    CombatState.activePlayerIndices = [0, 1];
-    CombatState.activeEnemyIndices = CombatState.enemyTeam.length >= 2 ? [0, 1] : [0];
+    CombatState.options = options;
+    CombatState.activePlayerIndices = Array.from({ length: Math.min(slots, team.length) }, (_, i) => i);
+    CombatState.activeEnemyIndices = Array.from({ length: Math.min(slots, CombatState.enemyTeam.length) }, (_, i) => i);
+    CombatState.net = options.net ? Object.assign({ seq: 0, missed: 0, errors: 0, lastSeq: 0 }, options.net) : null;
     dblSyncLegacyIndices();
 
     CombatState.isBattleOver = false;
     CombatState.mode = mode;
     CombatState.onBattleEndCallback = onEndCallback;
-    CombatState.options = options || {};
     CombatState.rankedResult = null;
     CombatState.logHistory = [];
     CombatState.weather = null;
@@ -86,8 +108,10 @@ function startDoubleBattle(playerUnits, enemyUnits, mode = 'double', onEndCallba
     // Se reinician todos los activos y después se aplican las habilidades de entrada
     ['p', 'e'].forEach(side => dblActive(side).forEach(u => { if (u && typeof resetUnitForEntry === 'function') resetUnitForEntry(u); }));
 
+    DoubleCombat.statusText = '';
     renderDoubleArena();
-    addCombatLog('¡Empieza el combate doble!');
+    addCombatLog(CombatState.options.slots === 1 ? '¡Empieza el combate!' : '¡Empieza el combate doble!');
+    if (CombatState.options.opponentName) addCombatLog(`🆚 Rival: ${CombatState.options.opponentName}`);
     ['p', 'e'].forEach(side => dblActive(side).forEach(u => { if (dblAlive(u)) dblEnter(u, true); }));
 
     beginSelection();
@@ -110,7 +134,40 @@ function beginSelection() {
 
     CombatState.turn = 'player';
     CombatState.currentFoe = null;
+    DoubleCombat.statusText = '';
     renderDoubleArena();
+
+    if (CombatState.net) {
+        dblStartSelectionTimer();
+        if (dblIsNetHost() && typeof netPublishState === 'function') netPublishState();
+    }
+}
+
+// Cuenta atrás para elegir acciones en combates online: al llegar a 0 se eligen ataques básicos
+function dblStartSelectionTimer() {
+    const token = ++DoubleCombat.timerToken;
+    DoubleCombat.deadline = Date.now() + ONLINE_SELECT_MS;
+
+    const tick = () => {
+        if (token !== DoubleCombat.timerToken || CombatState.isBattleOver || DoubleCombat.phase !== 'select') return;
+        const left = Math.max(0, Math.ceil((DoubleCombat.deadline - Date.now()) / 1000));
+        const el = document.getElementById('dbl-timer');
+        if (el) el.textContent = `⏱️ ${left} s`;
+        if (left <= 0) { dblAutoFill(); return; }
+        setTimeout(tick, 1000);
+    };
+    setTimeout(tick, 1000);
+}
+
+function dblAutoFill() {
+    let guard = 0;
+    while (DoubleCombat.phase === 'select' && DoubleCombat.cursor < DoubleCombat.slots.length && guard++ < 4) {
+        const unit = dblCurrentUnit();
+        if (!unit) break;
+        const foe = dblActive('e').find(dblAlive) || null;
+        addCombatLog(`⏱️ Tiempo agotado: ${dblT(unit)} usa su ataque básico.`);
+        dblQueueAction({ type: 'move', unit, move: unit.moves[0], target: foe });
+    }
 }
 
 function dblCurrentUnit() {
@@ -123,8 +180,13 @@ function dblQueueAction(action) {
     DoubleCombat.pending = null;
     DoubleCombat.switching = false;
     DoubleCombat.cursor++;
-    if (DoubleCombat.cursor >= DoubleCombat.slots.length) resolveRound();
-    else renderDoubleArena();
+    if (DoubleCombat.cursor >= DoubleCombat.slots.length) {
+        DoubleCombat.timerToken++;   // detiene la cuenta atrás
+        if (dblIsNetGuest()) netGuestSubmit();
+        else resolveRound();
+    } else {
+        renderDoubleArena();
+    }
 }
 
 window.dblChooseMove = function (moveIdx) {
@@ -212,8 +274,23 @@ function resolveRound() {
     DoubleCombat.phase = 'resolve';
     CombatState.turn = 'animating';
 
+    // Online: se esperan las acciones del rival humano. Contra bot: decide la IA.
+    if (dblIsNetHost() && typeof netWaitForOpponentAction === 'function') {
+        DoubleCombat.statusText = '⏳ Esperando al rival...';
+        renderDoubleArena();
+        netWaitForOpponentAction(DoubleCombat.round, remote => proceedResolveRound(netActionsToLocal(remote)));
+        return;
+    }
+    proceedResolveRound(null);
+}
+
+function proceedResolveRound(enemyActions) {
+    if (CombatState.isBattleOver) return;
+    DoubleCombat.statusText = '';
+
     const actions = DoubleCombat.queue.slice();
-    dblActive('e').forEach(u => { if (dblAlive(u)) actions.push(dblChooseEnemyAction(u)); });
+    if (enemyActions) enemyActions.forEach(a => actions.push(a));
+    else dblActive('e').forEach(u => { if (dblAlive(u)) actions.push(dblChooseEnemyAction(u)); });
 
     const ordered = actions
         .map(a => ({ a, key: a.type === 'switch' ? 1e9 : dblEffSpeed(a.unit), r: Math.random() }))
@@ -253,7 +330,7 @@ function dblDoSwitch(act) {
 
     dblIndices(side)[slot] = act.toIdx;
     dblSyncLegacyIndices();
-    addCombatLog(side === 'p' ? `🔄 ¡Retiramos a ${unit.name}, adelante ${nu.name}!` : `🔄 ¡El rival retira a ${unit.name} y saca a ${nu.name}!`);
+    addCombatLog(`🔄 ¡${dblT(unit)} se retira y entra ${dblT(nu)}!`);
     if (typeof resetUnitForEntry === 'function') resetUnitForEntry(nu);
     dblEnter(nu, true);
     renderDoubleArena();
@@ -292,7 +369,7 @@ function executeDoubleAction(act) {
         const healAmount = Math.floor(unit.maxHp * (move.shield || 0.2));
         unit.currentHp = Math.min(unit.maxHp, unit.currentHp + healAmount);
         unit.energy = Math.min(unit.maxEnergy, unit.energy + (move.energyGain || 0));
-        addCombatLog(`✨ ${side === 'p' ? '' : 'El '}${unit.name}${side === 'p' ? '' : ' enemigo'} usó ${move.name} y recuperó +${healAmount} HP.`);
+        addCombatLog(`✨ ${dblT(unit)} usó ${move.name} y recuperó +${healAmount} HP.`);
         triggerUnitAnimation(dblCardId(unit), 'buff');
         updateDoubleUI();
         return true;
@@ -313,7 +390,7 @@ function executeDoubleAction(act) {
     triggerUnitAnimation(dblCardId(target), 'hit');
     showFloatingDamage(dblCardId(target), result.damage, result.isCrit, result.effMessage);
 
-    let text = `${side === 'p' ? '⚔️' : '🔴'} ${unit.name}${side === 'p' ? '' : ' enemigo'} usó ${move.name} contra ${target.name} e infligió ${result.damage} de daño.`;
+    let text = `${side === 'p' ? '⚔️' : '🔴'} ${dblT(unit)} usó ${move.name} contra ${dblT(target)} e infligió ${result.damage} de daño.`;
     if (result.isCrit) text += ' ¡CRÍTICO!';
     if (result.effMessage) text += ` (${result.effMessage})`;
     addCombatLog(text);
@@ -332,7 +409,7 @@ function dblCheckFaints() {
         dblActive(side).forEach(u => {
             if (u && u.currentHp <= 0 && !(u.flags && u.flags.faintLogged)) {
                 if (u.flags) u.flags.faintLogged = true;
-                addCombatLog(side === 'p' ? `💀 ¡Tu ${u.name} se ha debilitado!` : `💀 ¡El ${u.name} enemigo ha sido derrotado!`);
+                addCombatLog(`💀 ¡${dblT(u)} se ha debilitado!`);
             }
         });
     });
@@ -341,8 +418,8 @@ function dblCheckFaints() {
 
 function dblCheckBattleOver() {
     if (CombatState.isBattleOver) return true;
-    if (!CombatState.enemyTeam.some(dblAlive)) { finishBattle(true); return true; }
-    if (!CombatState.playerTeam.some(dblAlive)) { finishBattle(false); return true; }
+    if (!CombatState.enemyTeam.some(dblAlive)) { dblConclude(true); return true; }
+    if (!CombatState.playerTeam.some(dblAlive)) { dblConclude(false); return true; }
     return false;
 }
 
@@ -359,7 +436,7 @@ function dblReplaceFainted() {
 
             idxs[s] = bench;
             const nu = team[bench];
-            addCombatLog(side === 'p' ? `⚠️ ¡Adelante, ${nu.name}!` : `⚠️ ¡El rival envía a ${nu.name}!`);
+            addCombatLog(`⚠️ ¡${dblT(nu)} entra en combate!`);
             if (typeof resetUnitForEntry === 'function') resetUnitForEntry(nu);
             dblEnter(nu, true);
         }
@@ -418,13 +495,14 @@ function dblCardHtml(u, side, slot) {
 function dblControlsHtml() {
     if (CombatState.isBattleOver) return '';
     if (DoubleCombat.phase !== 'select') {
-        return `<div style="text-align: center; color: #94a3b8; padding: 14px;">⏳ Resolviendo la ronda ${DoubleCombat.round}...</div>`;
+        return `<div style="text-align: center; color: #94a3b8; padding: 14px;">${DoubleCombat.statusText || `⏳ Resolviendo la ronda ${DoubleCombat.round}...`}</div>`;
     }
     const unit = dblCurrentUnit();
     if (!unit) return '';
 
     const head = `<div style="text-align: center; color: #fbbf24; margin-bottom: 8px; font-weight: 700;">
-        Ronda ${DoubleCombat.round} · ¿Qué hará ${unit.name}? (${DoubleCombat.cursor + 1}/${DoubleCombat.slots.length})</div>`;
+        Ronda ${DoubleCombat.round} · ¿Qué hará ${unit.name}? (${DoubleCombat.cursor + 1}/${DoubleCombat.slots.length})
+        ${CombatState.net ? '<span id="dbl-timer" style="margin-left: 10px; color: #f87171;"></span>' : ''}</div>`;
     const backBtn = (DoubleCombat.cursor > 0 || DoubleCombat.pending !== null || DoubleCombat.switching)
         ? `<button class="btn-move" onclick="dblBack()"><span class="move-name">↩ Volver</span></button>` : '';
 
@@ -472,15 +550,18 @@ function renderDoubleArena() {
 
     const enemies = dblIndices('e').map((idx, slot) => dblCardHtml(CombatState.enemyTeam[idx], 'e', slot)).join('');
     const players = dblIndices('p').map((idx, slot) => dblCardHtml(CombatState.playerTeam[idx], 'p', slot)).join('');
+    const cols = Math.max(1, Math.min(2, dblSlotsPerSide()));
+    const gridStyle = `display: grid; grid-template-columns: repeat(${cols}, 1fr); gap: 12px; ${cols === 1 ? 'max-width: 380px; margin-left: auto; margin-right: auto;' : ''}`;
+    const rivalName = CombatState.options && CombatState.options.opponentName;
     const benchP = CombatState.playerTeam.filter((u, i) => dblAlive(u) && !dblIndices('p').includes(i)).length;
     const benchE = CombatState.enemyTeam.filter((u, i) => dblAlive(u) && !dblIndices('e').includes(i)).length;
 
     container.innerHTML = `
         <div id="field-badge" style="text-align: center; font-size: 13px; color: #fbbf24; margin-bottom: 6px; font-weight: 700; display: none;"></div>
-        <div style="text-align: center; font-size: 12px; color: #94a3b8; margin-bottom: 4px;">Rival · banquillo: ${benchE}</div>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 10px;">${enemies}</div>
+        <div style="text-align: center; font-size: 12px; color: #94a3b8; margin-bottom: 4px;">${rivalName ? `👤 ${rivalName} · ` : ''}Rival · banquillo: ${benchE}</div>
+        <div style="${gridStyle} margin-bottom: 10px;">${enemies}</div>
         <div class="combat-vs-badge" style="margin: 0 auto 10px auto; text-align: center;">VS</div>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 4px;">${players}</div>
+        <div style="${gridStyle} margin-bottom: 4px;">${players}</div>
         <div style="text-align: center; font-size: 12px; color: #94a3b8; margin-bottom: 10px;">Tu banquillo: ${benchP}</div>
         ${dblControlsHtml()}
         <div class="combat-log-box" id="combat-log-box"></div>
@@ -518,7 +599,40 @@ function updateDoubleUI() {
 
     const logBox = document.getElementById('combat-log-box');
     if (logBox) {
-        logBox.innerHTML = CombatState.logHistory.slice(-6).map(msg => `<div class="log-item">${msg}</div>`).join('');
+        logBox.innerHTML = CombatState.logHistory.slice(-6).map(msg => `<div class="log-item">${formatDblLog(msg)}</div>`).join('');
         logBox.scrollTop = logBox.scrollHeight;
     }
+}
+
+// ---------- Invitado (online) ----------
+// El invitado no simula nada: elige acciones, las envía y muestra el estado que publica el anfitrión.
+
+function startOnlineGuest(mode, onEndCallback, options) {
+    CombatState.playerTeam = [];
+    CombatState.enemyTeam = [];
+    CombatState.double = true;
+    CombatState.activePlayerIndices = [];
+    CombatState.activeEnemyIndices = [];
+    CombatState.activePlayerIndex = 0;
+    CombatState.activeEnemyIndex = 0;
+    CombatState.isBattleOver = false;
+    CombatState.mode = mode;
+    CombatState.onBattleEndCallback = onEndCallback;
+    CombatState.options = options;
+    CombatState.rankedResult = null;
+    CombatState.logHistory = [];
+    CombatState.weather = null;
+    CombatState.weatherTurns = 0;
+    CombatState.terrain = null;
+    CombatState.terrainTurns = 0;
+    CombatState.currentFoe = null;
+    CombatState.net = Object.assign({ seq: 0, missed: 0, errors: 0, lastSeq: 0, waiting: false }, options.net);
+
+    DoubleCombat.round = 1;
+    DoubleCombat.phase = 'resolve';
+    DoubleCombat.queue = [];
+    DoubleCombat.statusText = '⏳ Conectando con el rival...';
+    renderDoubleArena();
+    netGuestWait();
+    return true;
 }
