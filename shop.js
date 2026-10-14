@@ -362,7 +362,7 @@ function renderShop() {
     if (currentShopSection === 'pokemon') body = renderShopPokemon();
     else if (currentShopSection === 'masterballs') body = renderShopMasterballs();
     else if (currentShopSection === 'calendario') body = renderShopCalendar();
-    else if (currentShopSection === 'objetos') body = '<div class="shop-empty"><div class="shop-empty-icon">🎒</div><p>Todavía no hay objetos a la venta. ¡Próximamente!</p></div>';
+    else if (currentShopSection === 'objetos') body = typeof renderShopItems === 'function' ? renderShopItems() : '<div class="shop-empty"><div class="shop-empty-icon">🎒</div><p>Objetos no disponibles.</p></div>';
     else if (currentShopSection === 'skins') body = typeof renderShopSkins === 'function' ? renderShopSkins() : '<div class="shop-empty"><div class="shop-empty-icon">🎨</div><p>Skins no disponibles.</p></div>';
 
     container.innerHTML = `<div class="shop-tabs">${tabs}</div>${body}`;

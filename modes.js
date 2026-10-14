@@ -54,7 +54,7 @@ function getSyncedPlayerTeam(storageKey, maxSlots) {
         if (typeof userInventory !== 'undefined') {
             const realInvPkmn = userInventory.find(item => Number(item.id) === Number(p.id));
             if (!realInvPkmn) return null; // ya no está en el inventario
-            return { ...p, level: realInvPkmn.level || 1, xp: realInvPkmn.xp || 0, stars: realInvPkmn.stars || 0, perks: realInvPkmn.perks || {}, sprite: realInvPkmn.sprite || p.sprite };
+            return { ...p, level: realInvPkmn.level || 1, xp: realInvPkmn.xp || 0, stars: realInvPkmn.stars || 0, perks: realInvPkmn.perks || {}, items: (realInvPkmn.items || []).slice(), sprite: realInvPkmn.sprite || p.sprite };
         }
         return p;
     }).filter(Boolean);
@@ -220,10 +220,10 @@ function renderCombatMenu() {
     menu.innerHTML = `
         <div style="text-align: center; padding: 10px;">
             <h2 style="font-family: 'Orbitron', sans-serif; color: #00f2fe; margin-bottom: 4px;">MODOS DE COMBATE</h2>
-            <label style="display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: #cbd5e1; cursor: pointer; background: rgba(0,242,254,0.07); border: 1px solid rgba(0,242,254,0.3); border-radius: 20px; padding: 6px 14px; margin-top: 6px;">
+            ${typeof ONLINE_FEATURE_ENABLED !== 'undefined' && ONLINE_FEATURE_ENABLED ? `<label style="display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: #cbd5e1; cursor: pointer; background: rgba(0,242,254,0.07); border: 1px solid rgba(0,242,254,0.3); border-radius: 20px; padding: 6px 14px; margin-top: 6px;">
                 <input type="checkbox" ${typeof isOnlineEnabled === 'function' && isOnlineEnabled() ? 'checked' : ''} onchange="setOnlinePref(this.checked)">
                 🌐 Buscar rival online (20 s; si no hay, juegas contra un bot)
-            </label>
+            </label>` : ''}
 
             ${sectionTitle('⚔️ COMBATE NORMAL')}
             <div class="gacha-buttons" style="${row}">

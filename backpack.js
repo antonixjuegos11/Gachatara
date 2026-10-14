@@ -6,7 +6,7 @@
 const BACKPACK_KEY = 'gachatara_backpack';
 
 const BACKPACK_SECTIONS = [
-    { id: 'combat',      name: 'Objetos de combate', icon: '⚔️', empty: 'No tienes objetos de combate todavía.' },
+    { id: 'combat',      name: 'Objetos de combate', icon: '⚔️', empty: 'No tienes objetos de combate. Consíguelos en la tienda (🪙) o en el gacha de objetos (🎟️).' },
     { id: 'consumables', name: 'Consumibles',        icon: '🧪', empty: 'No tienes consumibles. Los Caramelos Raros se venderán en la tienda.' }
 ];
 
@@ -155,6 +155,16 @@ function renderBackpack() {
     const section = BACKPACK_SECTIONS.find(s => s.id === currentBackpackSection) || BACKPACK_SECTIONS[0];
     const entries = Object.entries(bp[section.id]).filter(([id, qty]) => qty > 0 && BACKPACK_ITEMS[section.id][id]);
 
+    // Objetos de combate: ordenados por categoría y rareza (de mejor a peor)
+    if (section.id === 'combat' && typeof ITEM_RARITY_ORDER !== 'undefined') {
+        const catOrder = Object.keys(ITEM_CATEGORIES);
+        entries.sort((a, c) => {
+            const A = BACKPACK_ITEMS.combat[a[0]], C = BACKPACK_ITEMS.combat[c[0]];
+            return catOrder.indexOf(A.cat) - catOrder.indexOf(C.cat) ||
+                   ITEM_RARITY_ORDER.indexOf(C.rarity) - ITEM_RARITY_ORDER.indexOf(A.rarity) || A.name.localeCompare(C.name);
+        });
+    }
+
     let body;
     if (entries.length === 0) {
         body = `<div class="bp-empty"><div class="bp-empty-icon">🎒</div><p>${section.empty}</p></div>`;
@@ -162,13 +172,18 @@ function renderBackpack() {
         body = `<div class="bp-grid">` + entries.map(([id, qty]) => {
             const item = BACKPACK_ITEMS[section.id][id];
             const usable = id === 'rare_candy';
+            const equipable = section.id === 'combat';
+            const visual = (item.img && typeof itemImgHtml === 'function') ? `<div style="height: 48px; display: flex; align-items: center; justify-content: center;">${itemImgHtml(item, 44)}</div>` : `<div class="bp-icon">${item.icon}</div>`;
+            const rarityColor = (item.rarity && typeof ITEM_RARITY !== 'undefined') ? ITEM_RARITY[item.rarity].color : null;
             return `
-                <div class="bp-item">
-                    <div class="bp-icon">${item.icon}</div>
+                <div class="bp-item" ${rarityColor ? `style="border-color: ${rarityColor};"` : ''}>
+                    ${visual}
+                    ${item.rarity && typeof itemRarityBadge === 'function' ? itemRarityBadge(item) : ''}
                     <h4>${item.name}</h4>
                     <div class="bp-qty">x${qty}</div>
                     <p>${item.desc}</p>
                     ${usable ? `<button class="bp-use" onclick="openCandyPicker()">Usar</button>` : ''}
+                    ${equipable ? `<button class="bp-use" onclick="openItemPicker('${id}')">Equipar</button>` : ''}
                 </div>`;
         }).join('') + `</div>`;
     }

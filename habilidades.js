@@ -526,6 +526,7 @@ function tryApplyStatus(target, status, source, cause) {
     if (source && source !== target && source.currentHp > 0 && ['poisoned', 'burned', 'paralyzed'].includes(status) && hasAb(target, 'synchronize')) {
         tryApplyStatus(source, status, null, abName(target));
     }
+    if (typeof itemOnStatus === 'function') logAb(itemOnStatus(target, status));
     return true;
 }
 
@@ -570,6 +571,7 @@ function abilityCritInfo(attacker, defender) {
         if (ha.critMult) mult = ha.critMult;
         if (ha.critForce && ha.critForce(attacker, defender)) rate = 1;
     }
+    if (typeof itemCritRate === 'function') rate *= itemCritRate(attacker);
     const hd = handlerOf(defender, attacker);
     if (hd && hd.noCrit) blocked = true;
     return { rate, mult, blocked };
@@ -621,11 +623,24 @@ function applyPostHitAbilities(attacker, defender, move, result) {
 
     const c = { contact: isContactMove(move, attacker), isCrit: result.isCrit, elementMult: result.elementMult, moveType: result.moveType, damage: dmg };
 
-    if (defender.currentHp > 0) logAb(runEvent('hit', defender, attacker, move, dmg, c));
-    else logAb(runEvent('faint', defender, attacker, move, dmg, c));
+    if (defender.currentHp > 0) {
+        logAb(runEvent('hit', defender, attacker, move, dmg, c));
+        if (typeof itemEvent === 'function') logAb(itemEvent('hit', defender, attacker, move, dmg, c));
+    } else {
+        logAb(runEvent('faint', defender, attacker, move, dmg, c));
+    }
 
-    if (attacker.currentHp > 0) logAb(runEvent('strike', attacker, defender, move, dmg, c));
+    if (attacker.currentHp > 0) {
+        logAb(runEvent('strike', attacker, defender, move, dmg, c));
+        if (typeof itemEvent === 'function') logAb(itemEvent('strike', attacker, defender, move, dmg, c));
+    }
     if (defender.currentHp <= 0 && attacker.currentHp > 0) logAb(runEvent('ko', attacker, defender, move, dmg, c));
+
+    // Bayas de vida baja (también tras retrocesos)
+    if (typeof itemCheckThresholds === 'function') {
+        logAb(itemCheckThresholds(defender));
+        logAb(itemCheckThresholds(attacker));
+    }
 }
 
 // ---------- Cambios de Pokémon ----------
@@ -1259,7 +1274,7 @@ defineAbility(['aroma-veil', 'multitype', 'rks-system', 'mimicry', 'dancer', 're
 // DISPATCHER PRINCIPAL
 // =========================================================
 
-function abilityEnter(owner, foe, st, noReset) {
+function abilityEnterCore(owner, foe, st, noReset) {
     if (!noReset) resetUnitForEntry(owner);
     const key = abKey(owner);
     if (!key || key === 'none') return null;
@@ -1267,6 +1282,12 @@ function abilityEnter(owner, foe, st, noReset) {
     const h = handlerOf(owner);
     if (h && h.enter) return h.enter(owner, foe, st || CombatState) || null;
     return null;
+}
+
+function abilityEnter(owner, foe, st, noReset) {
+    const base = abilityEnterCore(owner, foe, st, noReset);
+    const items = typeof itemEnter === 'function' ? itemEnter(owner, foe) : null;
+    return [base, items].filter(Boolean).join(' ') || null;
 }
 
 // Habilidades de entrada que afectan al rival (Intimidación...): en dobles se repiten sobre el segundo rival
@@ -1292,8 +1313,21 @@ function abilityTurnEnd(owner, foe, st) {
     const h = owner.currentHp > 0 ? handlerOf(owner) : null;
     if (h && h.turn) { const m = h.turn(owner, foe, st || CombatState); if (m) msgs.push(m); }
 
+    // Objetos equipados (Restos, bayas...)
+    if (owner.currentHp > 0 && typeof itemTurn === 'function') {
+        const im = itemTurn(owner, foe); if (im) msgs.push(im);
+        const th = itemCheckThresholds(owner); if (th) msgs.push(th);
+    }
+
     owner.flags.justEntered = false;
     return msgs.length ? msgs.join(' ') : null;
+}
+
+// Aplica además los efectos de los objetos equipados (items.js)
+function mergeItemDamage(kind, base, owner, other, move, extra) {
+    if (typeof itemDamageHook !== 'function' || base.damage <= 0) return base;
+    const r = itemDamageHook(kind, owner, other, move, base.damage, extra);
+    return { damage: r.damage, message: [base.message, r.message].filter(Boolean).join(' ') || null };
 }
 
 function triggerAbility(triggerType, owner, target, move = null, damage = 0, battleState = null, extra = null) {
@@ -1305,8 +1339,8 @@ function triggerAbility(triggerType, owner, target, move = null, damage = 0, bat
     switch (triggerType) {
         case 'onEnter': return abilityEnter(owner, target, battleState, extra && extra.noReset);
         case 'onTurnEnd': return abilityTurnEnd(owner, target, battleState);
-        case 'onDamage': return runDamageHook('atk', owner, target, move, damage, extra);
-        case 'onReceiveDamage': return runDamageHook('def', owner, target, move, damage, extra);
+        case 'onDamage': return mergeItemDamage('atk', runDamageHook('atk', owner, target, move, damage, extra), owner, target, move, extra);
+        case 'onReceiveDamage': return mergeItemDamage('def', runDamageHook('def', owner, target, move, damage, extra), owner, target, move, extra);
         case 'onBeforeMove': {
             const h = handlerOf(owner);
             if (h && h.before) { const m = h.before(owner, target, battleState); if (m) return { skip: true, message: m }; }

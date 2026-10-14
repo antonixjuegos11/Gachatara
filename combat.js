@@ -132,6 +132,10 @@ function prepareCombatUnit(pkmn, level = 1) {
     const pb = typeof getPerkBonuses === 'function' ? getPerkBonuses(pkmn) : null;
     const pm = pb ? pb.mult : { hp: 1, attack: 1, defense: 1, spAtk: 1, spDef: 1, speed: 1 };
 
+    // Objetos de combate: tantos como ranuras tenga el Pokémon
+    const itemSlots = pb ? pb.itemSlots : 0;
+    const heldItems = (pkmn.items || []).filter(id => typeof ITEM_CATALOG === 'undefined' || ITEM_CATALOG[id]).slice(0, itemSlots);
+
     const maxHp = Math.floor(((((2 * base.hp) * currentLevel) / 100) + currentLevel + 10) * starMultiplier * pm.hp);
     const attack = Math.floor(((((2 * base.attack) * currentLevel) / 100) + 5) * starMultiplier * pm.attack);
     const defense = Math.floor(((((2 * base.defense) * currentLevel) / 100) + 5) * starMultiplier * pm.defense);
@@ -206,6 +210,9 @@ function prepareCombatUnit(pkmn, level = 1) {
         flags: {},
         persist: {},
         turnsIn: 0,
+        items: heldItems.slice(),
+        itemsAtStart: heldItems.slice(),
+        itemsUsed: [],
         moves: dynamicMoves
     };
 }
@@ -844,8 +851,10 @@ function applyBattleXp(team, xpGained) {
         target.xp = Number(target.xp) || 0;
         const oldLevel = target.level;
 
+        const gain = Math.floor(xpGained * (typeof itemXpMult === 'function' ? itemXpMult(battlePkmn) : 1));
+
         if (target.level < 100) {
-            target.xp += xpGained;
+            target.xp += gain;
             let needed = target.level * 100;
             while (target.xp >= needed && target.level < 100) {
                 target.xp -= needed;
@@ -867,7 +876,7 @@ function applyBattleXp(team, xpGained) {
             leveledUp: target.level > oldLevel,
             xp: target.xp,
             xpNeeded: target.level * 100,
-            gained: xpGained,
+            gained: gain,
             milestones: Math.floor(target.level / 10) - Math.floor(oldLevel / 10)
         });
     });
@@ -886,6 +895,9 @@ function finishBattle(hasPlayerWon) {
     const opts = CombatState.options || {};
     CombatState.rankedResult = (opts.ranked && typeof applyRankedResult === 'function') ? applyRankedResult(opts.ranked, hasPlayerWon) : null;
 
+    // Objetos de un solo uso gastados durante el combate
+    if (typeof syncConsumedItems === 'function') syncConsumedItems(CombatState.playerTeam);
+
     // 1. Mostrar la animación/cartel grande en pantalla
     showBattleResultOverlay(hasPlayerWon);
 
@@ -900,6 +912,7 @@ function finishBattle(hasPlayerWon) {
         if (CombatState.mode === 'story') coinReward = 250;
         if (CombatState.mode === 'ranked') { coinReward = 300; ticketReward = 1; }
         if (opts.rewardCoins) coinReward = opts.rewardCoins;
+        if (typeof itemCoinMult === 'function') coinReward = Math.floor(coinReward * itemCoinMult(CombatState.playerTeam));
 
         currencies.coins = (currencies.coins || 0) + coinReward;
         currencies.tickets = (currencies.tickets || 0) + ticketReward;

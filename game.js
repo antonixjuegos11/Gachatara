@@ -526,6 +526,8 @@ function openPokemonModal(pokemonId) {
 
         ${typeof getSkinRowHtml === 'function' ? getSkinRowHtml(pkmn) : ''}
 
+        ${typeof getItemRowHtml === 'function' ? getItemRowHtml(pkmn) : ''}
+
         ${typeof openSkillTree === 'function' ? `
         <button id="st-open-btn" onclick="openSkillTree(${pkmn.id})" style="width: 100%; margin-bottom: 12px; background: linear-gradient(135deg, #0ea5e9, #6366f1); color: white; border: none; padding: 10px 20px; font-size: 14px; font-weight: bold; border-radius: 8px; cursor: pointer;">
             🌳 Árbol de Habilidades ${pendingPerks > 0 ? `<span style="background: #fbbf24; color: #0f172a; border-radius: 10px; padding: 1px 8px; margin-left: 6px;">${pendingPerks} nuevo(s)</span>` : ''}
