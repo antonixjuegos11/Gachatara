@@ -525,6 +525,8 @@ function openPokemonModal(pokemonId) {
             </div>
         </div>
 
+        ${typeof getMovesInfoHtml === 'function' ? getMovesInfoHtml(pkmn) : ''}
+
         ${typeof getSkinRowHtml === 'function' ? getSkinRowHtml(pkmn) : ''}
 
         ${typeof getItemRowHtml === 'function' ? getItemRowHtml(pkmn) : ''}

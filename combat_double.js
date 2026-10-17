@@ -248,17 +248,7 @@ window.dblBack = function () {
 
 function dblChooseEnemyAction(u) {
     const foes = dblActive('p').filter(dblAlive);
-    const hpPct = (u.currentHp / u.maxHp) * 100;
-    const defensive = u.moves.find(m => m.power === 0 && u.energy >= (m.cost || 30));
-    const special = u.moves.find(m => m.isSpecial && u.energy >= (m.cost || 50));
-
-    let mv = u.moves[0];
-    if (hpPct < 30 && defensive && Math.random() < 0.7) mv = defensive;
-    else if (special && Math.random() < 0.8) mv = special;
-    else {
-        const affordable = u.moves.filter(m => u.energy >= (m.cost || 0)).sort((a, b) => (b.power || 0) - (a.power || 0));
-        if (affordable.length) mv = affordable[0];
-    }
+    const mv = chooseAiMove(u);
 
     let target = null;
     if (mv.power > 0 && foes.length) {
@@ -377,6 +367,7 @@ function executeDoubleAction(act) {
 
     const result = calculateDamage(unit, target, move);
     target.currentHp = Math.max(0, target.currentHp - result.damage);
+    applyMoveDrain(unit, move, result.damage);
     unit.energy = Math.min(unit.maxEnergy, unit.energy + move.energyGain);
 
     if (move.statusEffect && result.damage > 0 && !target.status) {
@@ -535,7 +526,7 @@ function dblControlsHtml() {
         ${unit.moves.map((move, idx) => `
             <button class="btn-move" onclick="dblChooseMove(${idx})" ${unit.energy < move.cost ? 'disabled' : ''}>
                 <span class="move-name">${move.name} (${move.type})</span>
-                <span class="move-cost">${move.cost > 0 ? `⚡ ${move.cost}` : 'Gratis'}</span>
+                <span class="move-cost">${moveTierTag(move)}${move.cost > 0 ? `⚡ ${move.cost}` : 'Gratis'}${move.power > 0 ? ` · Pot. ${move.power}` : ''}</span>
             </button>`).join('')}
         <button class="btn-move btn-switch-action" onclick="dblOpenSwitch()"><span class="move-name">🔄 Cambiar Pokémon</span><span class="move-cost">Equipo</span></button>
         ${backBtn}

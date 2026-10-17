@@ -4,7 +4,7 @@
 // Nodos de tipo:
 //   stat  -> eliges 1 de 3 mejoras de estadísticas (distintas "builds")
 //   item  -> desbloquea una ranura de objeto (los objetos llegarán más adelante)
-//   final -> eliges la versión (física o especial) del Ataque Final (nv. 80)
+//   final -> mejoras tu ulti: Devastadora (+30% potencia) o Vampírica (cura el 40% del daño) (nv. 80)
 //   title -> al nivel 100 se desbloquea un título de jugador para el perfil
 
 const SKILL_NODE_LEVELS = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
@@ -61,12 +61,12 @@ const SKILL_TREE = {
     70: { type: 'item', title: 'Ranura de Objeto II', slots: 1,
           desc: 'Una segunda ranura de objeto. (Los objetos llegarán pronto)' },
     80: {
-        type: 'final', title: 'Ataque Final',
+        type: 'final', title: 'Maestría de Ulti',
         options: [
-            { id: 'phys', icon: '💥', name: 'Final Físico',   kind: 'phys',
-              desc: 'Aprende un ataque final físico (potencia 150, cuesta 100 de energía).' },
-            { id: 'spec', icon: '🌟', name: 'Final Especial', kind: 'spec',
-              desc: 'Aprende un ataque final especial (potencia 150, cuesta 100 de energía).' }
+            { id: 'phys', icon: '💥', name: 'Ulti Devastadora', kind: 'phys',
+              desc: 'Tu ulti hace un 30% más de daño.' },
+            { id: 'spec', icon: '🩸', name: 'Ulti Vampírica',   kind: 'spec',
+              desc: 'Tu ulti te cura el 40% del daño que inflige.' }
         ]
     },
     90: {
@@ -142,7 +142,7 @@ function getPendingPerkCount(pkmn) {
     }).length;
 }
 
-// Ataque final que se añade a los movimientos en combate
+// (Antiguo) ataque final: ahora todos los Pokémon tienen ulti desde el inicio (ver moves.js)
 function buildFinalMove(primaryType, isSpecial) {
     return {
         name: FINAL_MOVE_NAMES[primaryType] || 'Ataque Final',
@@ -289,7 +289,7 @@ function renderSkillTree(pokemonId) {
         .map(([k, m]) => `+${Math.round((m - 1) * 100)}% ${SKILL_STAT_NAMES[k]}`);
     const summary = `
         <div><b>Bonificaciones activas:</b> ${summaryParts.length ? summaryParts.join(' · ') : 'ninguna todavía'}</div>
-        <div>🎒 Ranuras de objeto: <b>${pb.itemSlots}</b> &nbsp;|&nbsp; 💥 Ataque final: <b>${pb.finalKind ? (pb.finalKind === 'phys' ? 'Físico' : 'Especial') : 'no aprendido'}</b></div>
+        <div>🎒 Ranuras de objeto: <b>${pb.itemSlots}</b> &nbsp;|&nbsp; 💥 Ulti: <b>${pb.finalKind ? (pb.finalKind === 'phys' ? 'Devastadora' : 'Vampírica') : 'estándar'}</b></div>
     `;
 
     const nodesHtml = SKILL_NODE_LEVELS.map(lvl => {

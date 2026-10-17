@@ -144,51 +144,8 @@ function prepareCombatUnit(pkmn, level = 1) {
     const speed = Math.floor(((((2 * base.speed) * currentLevel) / 100) + 5) * starMultiplier * pm.speed);
 
     const primaryType = pkmnTypes[0];
-    const secondaryType = pkmnTypes[1] || primaryType;
-
-    const typeEffects = {
-        "Fuego": { status: "burned", chance: 0.25 },
-        "Eléctrico": { status: "paralyzed", chance: 0.3 },
-        "Veneno": { status: "poisoned", chance: 0.4 },
-        "Hielo": { status: "frozen", chance: 0.15 },
-        "Planta": { status: "poisoned", chance: 0.25 }
-    };
-
-    const effectData = typeEffects[primaryType] || { status: null, chance: 0 };
-
-    const dynamicMoves = [
-        { 
-            name: `Ataque ${primaryType}`, 
-            type: primaryType, 
-            power: 40, 
-            isSpecial: false, 
-            energyGain: 25, 
-            cost: 0,
-            statusEffect: effectData.status,
-            statusChance: effectData.chance
-        },
-        { 
-            name: `Especial ${secondaryType}`, 
-            type: secondaryType, 
-            power: 90, 
-            isSpecial: true, 
-            energyGain: 0, 
-            cost: 50
-        },
-        { 
-            name: 'Habilidad Defensiva', 
-            type: 'Normal', 
-            power: 0, 
-            shield: 0.3, 
-            energyGain: 15, 
-            cost: 30 
-        }
-    ];
-
-    // Ataque final (nivel 80 del árbol)
-    if (pb && pb.finalKind && typeof buildFinalMove === 'function') {
-        dynamicMoves.push(buildFinalMove(primaryType, pb.finalKind === 'spec'));
-    }
+    // Movimientos: flojo, fuerte, defensa y ulti del tipo (ver moves.js)
+    const dynamicMoves = buildMoveSet(pkmnTypes, attack, spAtk, pb ? pb.finalKind : null);
 
     return {
         ...pkmn,
@@ -427,6 +384,7 @@ window.executePlayerMove = function(moveIndex) {
 
     const damageResult = calculateDamage(attacker, defender, move);
     defender.currentHp = Math.max(0, defender.currentHp - damageResult.damage);
+    applyMoveDrain(attacker, move, damageResult.damage);
     attacker.energy = Math.min(attacker.maxEnergy, attacker.energy + move.energyGain);
 
     if (move.statusEffect && damageResult.damage > 0 && !defender.status) {
@@ -521,21 +479,7 @@ function executeEnemyTurn() {
         return;
     }
 
-    let selectedMove = attacker.moves[0];
-    const defensiveMove = attacker.moves.find(m => m.power === 0 && attacker.energy >= (m.cost || 30));
-    const specialMove = attacker.moves.find(m => m.isSpecial && attacker.energy >= (m.cost || 50));
-
-    if (hpPct < 30 && defensiveMove && Math.random() < 0.7) {
-        selectedMove = defensiveMove;
-    } else if (specialMove && Math.random() < 0.8) {
-        selectedMove = specialMove;
-    } else {
-        let affordableMoves = attacker.moves.filter(m => attacker.energy >= (m.cost || 0));
-        if (affordableMoves.length > 0) {
-            affordableMoves.sort((a, b) => (b.power || 0) - (a.power || 0));
-            selectedMove = affordableMoves[0];
-        }
-    }
+    const selectedMove = chooseAiMove(attacker);
 
     attacker.energy -= selectedMove.cost;
 
@@ -556,6 +500,7 @@ function executeEnemyTurn() {
 
     const damageResult = calculateDamage(attacker, defender, selectedMove);
     defender.currentHp = Math.max(0, defender.currentHp - damageResult.damage);
+    applyMoveDrain(attacker, selectedMove, damageResult.damage);
     attacker.energy = Math.min(attacker.maxEnergy, attacker.energy + selectedMove.energyGain);
 
     if (selectedMove.statusEffect && damageResult.damage > 0 && !defender.status) {
@@ -1230,7 +1175,7 @@ function renderCombatArena() {
                     return `
                         <button class="btn-move" onclick="window.executePlayerMove(${idx})" ${CombatState.turn !== 'player' || player.energy < move.cost ? 'disabled' : ''}>
                             <span class="move-name">${move.name} (${move.type})</span>
-                            <span class="move-cost">${move.cost > 0 ? `⚡ ${move.cost}` : 'Gratis'}</span>
+                            <span class="move-cost">${moveTierTag(move)}${move.cost > 0 ? `⚡ ${move.cost}` : 'Gratis'}${move.power > 0 ? ` · Pot. ${move.power}` : ''}</span>
                             ${effLabel.text ? `<span class="move-eff ${effLabel.class}">${effLabel.text}</span>` : ''}
                         </button>
                     `;
