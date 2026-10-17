@@ -868,6 +868,8 @@ function applyBattleXp(team, xpGained) {
             battlePkmn.xp = target.xp;
         }
 
+        if (target.level > oldLevel && typeof trackMission === 'function') trackMission('levels_gained', target.level - oldLevel);
+
         summary.push({
             name: target.name,
             sprite: target.sprite || battlePkmn.sprite || '',
@@ -890,6 +892,7 @@ function finishBattle(hasPlayerWon) {
 
     // Estadísticas del perfil del jugador
     if (typeof recordBattleResult === 'function') recordBattleResult(hasPlayerWon, CombatState.mode, CombatState.options);
+    if (typeof trackBattleMissions === 'function') trackBattleMissions(hasPlayerWon, CombatState);
 
     // Clasificatorio: puntos y rango
     const opts = CombatState.options || {};

@@ -184,6 +184,7 @@ function selectPerk(pokemonId, nodeLevel, optionId) {
     if (!node.options.some(o => o.id === optionId)) return;
 
     p.perks[nodeLevel] = optionId;
+    if (typeof trackMission === 'function') trackMission('perk_chosen');
     refreshAfterPerkChange(p);
 }
 

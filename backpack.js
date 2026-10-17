@@ -73,6 +73,7 @@ function useRareCandy(pokemonId, amount = 1) {
     const oldLevel = p.level;
     p.level += n;
     removeBackpackItem('consumables', 'rare_candy', n);
+    if (typeof trackMission === 'function') trackMission('levels_gained', n);
 
     if (typeof saveStorage === 'function') saveStorage();
     if (typeof renderInventory === 'function') renderInventory();

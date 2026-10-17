@@ -174,6 +174,7 @@ function addPokemonToInventory(pkmn) {
             baseStats: fullPkmnData.baseStats || { hp: 45, attack: 49, defense: 49, spAtk: 65, spDef: 65, speed: 45 },
             ability: fullPkmnData.ability || pkmn.ability || 'Presión'
         });
+        if (typeof trackMission === 'function') trackMission('new_pokemon');
     }
 
     saveStorage();
@@ -585,6 +586,7 @@ function awakenPokemon(pokemonId) {
         pkmn.count = totalCopies;
         pkmn.dupes = totalCopies;
         pkmn.stars += 1;          
+        if (typeof trackMission === 'function') { trackMission('star_up'); trackMission('coins_spent', coinCost); }
         
         saveStorage();
         openPokemonModal(pokemonId); 
@@ -675,6 +677,14 @@ function switchTab(tabId, event) {
 
     if (tabId === 'combate' && typeof renderCombatMenu === 'function' && !(typeof CombatState !== 'undefined' && CombatState.playerTeam && CombatState.playerTeam.length && !CombatState.isBattleOver)) {
         renderCombatMenu();
+    }
+
+    if (tabId === 'invocacion' && typeof renderPityInfo === 'function') {
+        renderPityInfo();
+    }
+
+    if (tabId === 'misiones' && typeof renderMissions === 'function') {
+        renderMissions();
     }
 
     if (tabId === 'tienda' && typeof renderShop === 'function') {

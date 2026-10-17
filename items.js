@@ -28,6 +28,7 @@ const ITEM_RARITY = {
 const ITEM_RARITY_ORDER = ['comun', 'raro', 'epico', 'legendario'];
 
 const ITEM_GACHA_COST = 1;              // tickets por tirada
+const ITEM_PITY_EPIC = 20;              // cada 20 tiradas sin objeto Épico o mejor, la siguiente lo es
 const ITEM_TICKET_COIN_VALUE = 200;     // valor orientativo de un ticket en monedas
 
 const ITEM_CATALOG = {};
@@ -358,6 +359,7 @@ function equipItem(pokemonId, itemId) {
 
     removeBackpackItem('combat', itemId, 1);
     p.items.push(itemId);
+    if (typeof trackMission === 'function') trackMission('item_equipped');
     if (typeof saveStorage === 'function') saveStorage();
     itemToast(`🎒 ${p.name} lleva ahora ${ITEM_CATALOG[itemId].name}.`);
     refreshItemViews(p.id);
@@ -506,6 +508,7 @@ function buyShopItem(itemId) {
     cur.coins -= price;
     saveCurrencies(cur);
     addBackpackItem('combat', itemId, 1);
+    if (typeof trackMission === 'function') trackMission('coins_spent', price);
     itemToast(`✅ Compraste ${it.name} por ${price} 🪙`);
     renderShop();
 }
@@ -556,11 +559,22 @@ function pickItemOfRarity(rarity) {
     return pool[Math.floor(Math.random() * pool.length)];
 }
 
-// x10: garantiza al menos un objeto Raro o mejor
+// Tiradas con garantías: épico o mejor asegurado cada ITEM_PITY_EPIC tiradas; la x10 garantiza al menos un Raro
 function rollItemPulls(amount) {
+    const pity = typeof getPity === 'function' ? getPity() : { itemSinceEpic: 0 };
     const pulls = [];
-    for (let i = 0; i < amount; i++) pulls.push(pickItemOfRarity(rollItemRarity()));
+
+    for (let i = 0; i < amount; i++) {
+        let rarity = rollItemRarity();
+        if (pity.itemSinceEpic >= ITEM_PITY_EPIC - 1 && ITEM_RARITY_ORDER.indexOf(rarity) < 2) {
+            rarity = Math.random() < ITEM_RARITY.epico.rate / (ITEM_RARITY.epico.rate + ITEM_RARITY.legendario.rate) ? 'epico' : 'legendario';
+        }
+        pity.itemSinceEpic = ITEM_RARITY_ORDER.indexOf(rarity) >= 2 ? 0 : pity.itemSinceEpic + 1;
+        pulls.push(pickItemOfRarity(rarity));
+    }
     if (amount >= 10 && pulls.every(it => it.rarity === 'comun')) pulls[pulls.length - 1] = pickItemOfRarity('raro');
+
+    if (typeof savePity === 'function') savePity(pity);
     return pulls;
 }
 
@@ -574,6 +588,7 @@ function pullItemGacha(amount) {
 
     const pulls = rollItemPulls(amount);
     pulls.forEach(it => addBackpackItem('combat', it.id, 1));
+    if (typeof trackMission === 'function') trackMission('item_pull', pulls.length);
 
     const results = document.getElementById('item-gacha-results');
     if (!results) return;
@@ -592,6 +607,7 @@ function renderItemGachaInfo() {
     const el = document.getElementById('item-gacha-info');
     if (!el) return;
     const tickets = getCurrencies().tickets || 0;
+    const pity = typeof getPity === 'function' ? getPity() : { itemSinceEpic: 0 };
     const ev = ITEM_RARITY_ORDER.reduce((s, id) => s + ITEM_RARITY[id].price * ITEM_RARITY[id].rate / 100, 0);
     el.innerHTML = `
         <p class="gacha-subtitle">Consigue bayas, cintas, pañuelos y objetos varios. Tienes <b>${tickets}</b> 🎟️</p>
@@ -600,7 +616,11 @@ function renderItemGachaInfo() {
         </div>
         <p style="font-size: 12px; color: #94a3b8; text-align: center; margin-bottom: 10px;">
             Cada tirada equivale de media a unas ${Math.round(ev)} 🪙 en objetos (1 🎟️ ≈ ${ITEM_TICKET_COIN_VALUE} 🪙). La tirada x10 garantiza al menos un objeto Raro o mejor.
-        </p>`;
+        </p>
+        <div style="max-width: 420px; margin: 0 auto 12px auto; font-size: 12px; color: #cbd5e1;">
+            <div style="display: flex; justify-content: space-between;"><span>Épico o mejor asegurado</span><span>${Math.min(pity.itemSinceEpic, ITEM_PITY_EPIC)} / ${ITEM_PITY_EPIC}</span></div>
+            <div style="background: #0f172a; border: 1px solid #334155; border-radius: 6px; height: 9px; overflow: hidden;"><div style="width: ${Math.min(100, Math.floor(pity.itemSinceEpic / ITEM_PITY_EPIC * 100))}%; height: 100%; background: #a855f7;"></div></div>
+        </div>`;
 }
 
 // Pestañas "Pokémon / Objetos" dentro de Invocación

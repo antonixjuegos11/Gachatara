@@ -44,6 +44,7 @@
             <button class="nav-tab active" onclick="switchTab('lobby', event)">Lobby</button>
             <button class="nav-tab" onclick="switchTab('combate', event)">Combate</button>
             <button class="nav-tab" onclick="switchTab('equipo', event)">Equipo</button>
+            <button class="nav-tab" onclick="switchTab('misiones', event)">Misiones <span id="missions-dot" style="display: none; background: #fbbf24; color: #0f172a; border-radius: 9px; padding: 0 6px; font-size: 11px; font-weight: 700; margin-left: 2px;"></span></button>
             <button class="nav-tab" onclick="switchTab('mochila', event)">Mochila</button>
             <button class="nav-tab" onclick="switchTab('tienda', event)">Tienda</button>
             <button class="nav-tab" onclick="switchTab('invocacion', event)">Invocación</button>
@@ -133,6 +134,16 @@
         </div>
     </main>
 
+    <!-- ZONA DE MISIONES -->
+    <main id="tab-misiones" class="lobby-container tab-content">
+        <div class="dex-frame">
+            <div class="equipo-header">
+                <h2>🎯 MISIONES</h2>
+            </div>
+            <div id="missions-content"></div>
+        </div>
+    </main>
+
     <!-- ZONA DE TIENDA -->
     <main id="tab-tienda" class="lobby-container tab-content">
         <div class="dex-frame">
@@ -172,6 +183,7 @@
 
             <h2 id="banner-title" class="gacha-banner-title">BANNER GENERACIÓN 1 (KANTO)</h2>
             <p class="gacha-subtitle">¡Involucra Pokémon de todas las generaciones y Megaevoluciones Secretas!</p>
+            <div id="gacha-pity-info"></div>
             
             <div class="gacha-buttons">
                 <button class="btn-pull" onclick="pullGacha(1)">Tirada x1 (1 Ticket)</button>
@@ -210,6 +222,7 @@
     <script src="profile.js"></script>
     <script src="backpack.js"></script>
     <script src="shop.js"></script>
+    <script src="missions.js"></script>
     <script src="skins.js"></script>
     <script src="items.js"></script> <!-- <--- ¡AQUÍ ESTABA EL FALTANTE! -->
     <script src="combat.js"></script>

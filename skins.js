@@ -89,6 +89,7 @@ function buySkin(catalogId, pokemonId) {
     state.owned[catalogId] = owned;
     state.daily.bought[catalogId] = (state.daily.bought[catalogId] || []).concat(pkmn.id);
     saveSkinsState(state);
+    if (typeof trackMission === 'function') trackMission('skin_bought');
 
     const hasPokemon = typeof userInventory !== 'undefined' && userInventory.some(x => Number(x.id) === Number(pkmn.id));
     showShopToast(`✅ Skin ${SKIN_CATALOGS[catalogId].name.replace(/s$/, '')} de ${pkmn.name} comprada${hasPokemon ? ': equípala desde su menú' : ' (la verás en cuanto consigas al Pokémon)'}`);

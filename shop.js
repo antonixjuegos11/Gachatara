@@ -138,6 +138,7 @@ function buyShopPokemon(pokemonId) {
     saveCurrencies(currencies);
 
     addPokemonToInventory({ ...pkmn });
+    if (typeof trackMission === 'function') trackMission('coins_spent', price);
 
     state.bought.push(pkmn.id);
     localStorage.setItem(SHOP_KEY, JSON.stringify(state));
@@ -267,6 +268,7 @@ function claimAdventDay(day) {
     state.claimed.push(day);
     localStorage.setItem(ADVENT_KEY, JSON.stringify(state));
 
+    if (typeof trackMission === 'function') trackMission('advent_claimed');
     showShopToast(`🎁 ¡Recompensa del día ${day} reclamada!`);
     renderShop();
 }
