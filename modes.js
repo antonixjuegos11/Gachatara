@@ -152,12 +152,19 @@ function startBotMatch(cfg, team) {
 
     setCombatMenuVisible(false);
 
-    if (cfg.format === 'double') {
-        const started = startDoubleBattle(team, enemyTeam, cfg.battleMode, onEnd, options);
-        if (!started) setCombatMenuVisible(true);
-    } else {
-        startBattle(team, enemyTeam, cfg.battleMode, onEnd, options);
-        addCombatLog('🆚 Rival: 🤖 Bot');
+    try {
+        if (cfg.format === 'double') {
+            const started = startDoubleBattle(team, enemyTeam, cfg.battleMode, onEnd, options);
+            if (!started) setCombatMenuVisible(true);
+        } else {
+            startBattle(team, enemyTeam, cfg.battleMode, onEnd, options);
+            addCombatLog('🆚 Rival: 🤖 Bot');
+        }
+    } catch (e) {
+        // Si algo falla al empezar, se vuelve al menú y se explica el motivo (en vez de dejar la pantalla en blanco)
+        console.error('Error al iniciar el combate:', e);
+        setCombatMenuVisible(true);
+        alert(`No se pudo iniciar el combate: ${e.message}\n\nComprueba que todos los archivos del juego están subidos y actualizados (sobre todo moves.js, combat.js y habilidades.js) y recarga con Ctrl+F5.`);
     }
 }
 

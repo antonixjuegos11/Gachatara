@@ -678,7 +678,7 @@ function switchTab(tabId, event) {
     }
 
     if (tabId === 'combate' && typeof renderCombatMenu === 'function' && !(typeof CombatState !== 'undefined' && CombatState.playerTeam && CombatState.playerTeam.length && !CombatState.isBattleOver)) {
-        renderCombatMenu();
+        if (typeof setCombatMenuVisible === 'function') setCombatMenuVisible(true); else renderCombatMenu();
     }
 
     if (tabId === 'invocacion' && typeof renderPityInfo === 'function') {

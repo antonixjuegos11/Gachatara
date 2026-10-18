@@ -145,7 +145,14 @@ function prepareCombatUnit(pkmn, level = 1) {
 
     const primaryType = pkmnTypes[0];
     // Movimientos: flojo, fuerte, defensa y ulti del tipo (ver moves.js)
-    const dynamicMoves = buildMoveSet(pkmnTypes, attack, spAtk, pb ? pb.finalKind : null);
+    const dynamicMoves = (typeof buildMoveSet === 'function')
+        ? buildMoveSet(pkmnTypes, attack, spAtk, pb ? pb.finalKind : null)
+        : [   // Respaldo por si moves.js no se ha cargado: el combate sigue funcionando
+            { name: `Ataque ${primaryType}`, type: primaryType, tier: 'weak', power: 45, isSpecial: spAtk > attack, energyGain: 25, cost: 0 },
+            { name: `Fuerte ${pkmnTypes[1] || primaryType}`, type: pkmnTypes[1] || primaryType, tier: 'strong', power: 90, isSpecial: spAtk > attack, energyGain: 0, cost: 50 },
+            { name: 'Habilidad Defensiva', type: 'Normal', tier: 'defense', power: 0, shield: 0.3, energyGain: 15, cost: 30 },
+            { name: `Ulti ${primaryType}`, type: primaryType, tier: 'ultimate', power: 160, isSpecial: spAtk > attack, energyGain: 0, cost: 100 }
+        ];
 
     return {
         ...pkmn,
@@ -384,7 +391,7 @@ window.executePlayerMove = function(moveIndex) {
 
     const damageResult = calculateDamage(attacker, defender, move);
     defender.currentHp = Math.max(0, defender.currentHp - damageResult.damage);
-    applyMoveDrain(attacker, move, damageResult.damage);
+    if (typeof applyMoveDrain === 'function') applyMoveDrain(attacker, move, damageResult.damage);
     attacker.energy = Math.min(attacker.maxEnergy, attacker.energy + move.energyGain);
 
     if (move.statusEffect && damageResult.damage > 0 && !defender.status) {
@@ -479,7 +486,7 @@ function executeEnemyTurn() {
         return;
     }
 
-    const selectedMove = chooseAiMove(attacker);
+    const selectedMove = typeof chooseAiMove === 'function' ? chooseAiMove(attacker) : attacker.moves[0];
 
     attacker.energy -= selectedMove.cost;
 
@@ -500,7 +507,7 @@ function executeEnemyTurn() {
 
     const damageResult = calculateDamage(attacker, defender, selectedMove);
     defender.currentHp = Math.max(0, defender.currentHp - damageResult.damage);
-    applyMoveDrain(attacker, selectedMove, damageResult.damage);
+    if (typeof applyMoveDrain === 'function') applyMoveDrain(attacker, selectedMove, damageResult.damage);
     attacker.energy = Math.min(attacker.maxEnergy, attacker.energy + selectedMove.energyGain);
 
     if (selectedMove.statusEffect && damageResult.damage > 0 && !defender.status) {
@@ -1175,7 +1182,7 @@ function renderCombatArena() {
                     return `
                         <button class="btn-move" onclick="window.executePlayerMove(${idx})" ${CombatState.turn !== 'player' || player.energy < move.cost ? 'disabled' : ''}>
                             <span class="move-name">${move.name} (${move.type})</span>
-                            <span class="move-cost">${moveTierTag(move)}${move.cost > 0 ? `⚡ ${move.cost}` : 'Gratis'}${move.power > 0 ? ` · Pot. ${move.power}` : ''}</span>
+                            <span class="move-cost">${typeof moveTierTag === 'function' ? moveTierTag(move) : ''}${move.cost > 0 ? `⚡ ${move.cost}` : 'Gratis'}${move.power > 0 ? ` · Pot. ${move.power}` : ''}</span>
                             ${effLabel.text ? `<span class="move-eff ${effLabel.class}">${effLabel.text}</span>` : ''}
                         </button>
                     `;
