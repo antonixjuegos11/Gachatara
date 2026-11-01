@@ -349,6 +349,8 @@ function exchangeSpark(pokemonId) {
         addPokemonToInventory(pkmn);
     }
 
+    if (typeof trackMission === 'function') trackMission('spark_exchanged');
+
     const overlay = document.getElementById('spark-overlay');
     if (overlay) overlay.remove();
     if (typeof showShopToast === 'function') showShopToast(`✨ Has canjeado tu chispa por ${pkmn.name}`);

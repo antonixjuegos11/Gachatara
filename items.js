@@ -472,12 +472,12 @@ function renderItemPickers() {
         const it = ITEM_CATALOG[itemPickerItem];
         if (!it || getItemCount('combat', itemPickerItem) <= 0) { ip.style.display = 'none'; return; }
         const query = (document.getElementById('item-picker-search') ? document.getElementById('item-picker-search').value : '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
-        const rows = (typeof userInventory !== 'undefined' ? userInventory : []).slice().sort((a, b) => Number(a.id) - Number(b.id))
+        const rows = (typeof userInventory !== 'undefined' ? userInventory : []).slice().sort((a, b) => (b.fav ? 1 : 0) - (a.fav ? 1 : 0) || Number(a.id) - Number(b.id))
             .filter(p => !query || p.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(query))
             .map(p => {
                 const slots = getItemSlots(p), used = (p.items || []).length;
                 return `<div class="it-row"><img src="${p.sprite}" alt="${p.name}" style="width: 40px; height: 40px; object-fit: contain;">
-                    <div class="it-name">${p.name}<small>Nv. ${p.level || 1} · ranuras ${used}/${slots}</small></div>
+                    <div class="it-name">${p.fav ? '⭐ ' : ''}${p.name}<small>Nv. ${p.level || 1} · ranuras ${used}/${slots}</small></div>
                     <button ${used >= slots ? 'disabled' : ''} onclick="equipItem(${p.id}, '${itemPickerItem}')">Equipar</button></div>`;
             }).join('');
         if (!document.getElementById('item-picker-list')) {

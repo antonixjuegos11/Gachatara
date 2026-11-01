@@ -154,6 +154,7 @@ function missionDone(st, def) { return (st.progress[def.id] || 0) >= def.target;
 
 function trackMission(event, amount = 1) {
     if (!(amount > 0)) return;
+    if (typeof addLifetimeStat === 'function') addLifetimeStat(event, amount);   // contadores de logros
     const state = ensureMissions();
     let changed = false;
 
@@ -170,6 +171,7 @@ function trackMission(event, amount = 1) {
     });
 
     if (changed) saveMissionState(state);
+    if (typeof checkAchievements === 'function') checkAchievements();
     updateMissionBadge();
     const tab = document.getElementById('tab-misiones');
     if (changed && tab && tab.classList.contains('active')) renderMissions();
@@ -238,6 +240,7 @@ function claimMission(period, id) {
     st.claimed[id] = true;
     saveMissionState(state);
     giveMissionReward(def.reward);
+    if (typeof addLifetimeStat === 'function') addLifetimeStat('missions_claimed', 1);
     missionToast(`🎯 Misión completada: +${rewardText(def.reward)}`);
     updateMissionBadge();
     renderMissions();
@@ -254,6 +257,7 @@ function claimMissionChest(period) {
     st.chest = true;
     saveMissionState(state);
     giveMissionReward(MISSION_PERIODS[period].chest);
+    if (typeof addLifetimeStat === 'function') addLifetimeStat('chests_opened', 1);
     missionToast(`🎁 ¡Cofre ${MISSION_PERIODS[period].name.toLowerCase()} abierto! +${rewardText(MISSION_PERIODS[period].chest)}`);
     updateMissionBadge();
     renderMissions();
@@ -284,7 +288,7 @@ function countClaimable() {
 function updateMissionBadge() {
     const dot = document.getElementById('missions-dot');
     if (!dot) return;
-    const n = countClaimable();
+    const n = countClaimable() + (typeof countClaimableAchievements === 'function' ? countClaimableAchievements() : 0);
     dot.style.display = n > 0 ? 'inline-block' : 'none';
     dot.textContent = n > 0 ? String(n) : '';
 }
@@ -331,13 +335,25 @@ function renderMissions() {
     injectMissionStyles();
 
     const state = ensureMissions();
-    const st = state[currentMissionPeriod];
 
-    const tabs = Object.entries(MISSION_PERIODS).map(([id, p]) => {
+    const periodTabs = Object.entries(MISSION_PERIODS).map(([id, p]) => {
         const s = state[id];
         const ready = s.ids.filter(mid => !s.claimed[mid] && missionDone(s, getMissionDef(id, mid))).length + ((!s.chest && periodAllClaimed(s)) ? 1 : 0);
         return `<button class="banner-btn ${id === currentMissionPeriod ? 'active' : ''}" onclick="switchMissionPeriod('${id}')">${p.icon} ${p.name}${ready ? `<span class="ms-count">${ready}</span>` : ''}</button>`;
     }).join('');
+
+    // Pestaña de logros (achievements.js)
+    const achReady = typeof countClaimableAchievements === 'function' ? countClaimableAchievements() : 0;
+    const achTab = typeof renderAchievementsHtml === 'function'
+        ? `<button class="banner-btn ${currentMissionPeriod === 'logros' ? 'active' : ''}" onclick="switchMissionPeriod('logros')">🏆 Logros${achReady ? `<span class="ms-count">${achReady}</span>` : ''}</button>` : '';
+    const tabs = periodTabs + achTab;
+
+    if (currentMissionPeriod === 'logros' && achTab) {
+        container.innerHTML = `<div class="ms-tabs">${tabs}</div>${renderAchievementsHtml()}`;
+        return;
+    }
+    if (currentMissionPeriod === 'logros') currentMissionPeriod = 'daily';
+    const st = state[currentMissionPeriod];
 
     const cards = st.ids.map(id => {
         const def = getMissionDef(currentMissionPeriod, id);

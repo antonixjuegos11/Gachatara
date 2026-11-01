@@ -317,32 +317,10 @@ function normalizeSearchText(text) {
 
 // Filtro del buscador del inventario: nombre, número de Pokédex o tipo (+ filtro de rareza)
 function matchesInventoryFilter(pkmn) {
-    const searchElem = document.getElementById('inventory-search');
-    const rarityElem = document.getElementById('inventory-rarity-filter');
-    const query = normalizeSearchText(searchElem ? searchElem.value : '');
-    const rarity = rarityElem ? rarityElem.value : '';
-
-    if (rarity) {
-        const pr = normalizeSearchText(pkmn.rarity || 'comun');
-        if (pr !== rarity) return false;
-    }
-    if (!query) return true;
-
-    const name = normalizeSearchText(pkmn.name);
-    const idText = String(pkmn.id);
-    const types = normalizeSearchText((pkmn.types || [pkmn.type || '']).join(' '));
-    const cleanQuery = query.replace('#', '');
-
-    return name.includes(query) || types.includes(query) || (/^\d+$/.test(cleanQuery) && idText.startsWith(cleanQuery.replace(/^0+/, '')));
+    // Los filtros (nombre, nº, tipo, rareza, generación, favoritos, equipo) viven en filters.js
+    return typeof filtersMatchInventory === 'function' ? filtersMatchInventory(pkmn) : true;
 }
 
-function clearInventorySearch() {
-    const s = document.getElementById('inventory-search');
-    const r = document.getElementById('inventory-rarity-filter');
-    if (s) s.value = '';
-    if (r) r.value = '';
-    renderInventory();
-}
 
 function renderInventory() {
     const container = document.getElementById('inventory-grid') || document.getElementById('team-grid');
@@ -362,9 +340,10 @@ function renderInventory() {
     }
 
     const currentTeam = getTeamArray(currentTeamMode);
-    const sortedInventory = [...userInventory]
-        .sort((a, b) => Number(a.id) - Number(b.id))
-        .filter(matchesInventoryFilter);
+    const filteredInventory = [...userInventory].filter(matchesInventoryFilter);
+    const sortedInventory = typeof sortInventoryList === 'function'
+        ? sortInventoryList(filteredInventory)
+        : filteredInventory.sort((a, b) => Number(a.id) - Number(b.id));
 
     const resultsElem = document.getElementById('inventory-results-count');
     if (resultsElem) {
@@ -407,6 +386,7 @@ function renderInventory() {
             ${countBadge}
             ${teamBadge}
             ${treeBadge}
+            <div title="Favorito" onclick="event.stopPropagation(); toggleFavorite(${pkmn.id})" style="position: absolute; bottom: 4px; right: 6px; font-size: 16px; cursor: pointer; z-index: 3; text-shadow: 0 0 4px #000;">${pkmn.fav ? '⭐' : '☆'}</div>
             ${pkmn.stars > 0 ? `<div class="card-stars-badge" style="position: absolute; top: 5px; left: 5px; color: #f1c40f; font-size: 11px; text-shadow: 0 1px 2px #000;">${starsDisplay}</div>` : ''}
             <div class="card-id">#${String(pkmn.id).padStart(4, '0')}</div>
             <img src="${pkmn.sprite}" alt="${pkmn.name}">
@@ -491,7 +471,7 @@ function openPokemonModal(pokemonId) {
 
     content.innerHTML = `
         <div class="modal-header-section">
-            <h2 class="modal-pkmn-name">${pkmn.name}</h2>
+            <h2 class="modal-pkmn-name">${pkmn.name} <span onclick="toggleFavorite(${pkmn.id})" title="Marcar como favorito" style="cursor: pointer;">${pkmn.fav ? '⭐' : '☆'}</span></h2>
             <div class="modal-stars">${starsDisplay} (Rango ${pkmn.stars}/7)</div>
         </div>
 
@@ -635,7 +615,16 @@ function renderDex() {
     if (counter) counter.innerText = `${unlockedCount} / ${total} (${percentage}%)`;
     if (fill) fill.style.width = `${percentage}%`;
 
-    dbList.forEach(pkmn => {
+    const filteredDex = dbList.filter(p => typeof filtersMatchDex !== 'function' || filtersMatchDex(p, playerCollection.has(Number(p.id))));
+    const dexCount = document.getElementById('dex-results-count');
+    if (dexCount) dexCount.textContent = `Mostrando ${filteredDex.length} de ${total}`;
+
+    if (filteredDex.length === 0) {
+        grid.innerHTML = '<p style="color: var(--text-secondary); grid-column: 1/-1; text-align: center; padding: 20px;">Ningún Pokémon coincide con tu búsqueda.</p>';
+        return;
+    }
+
+    filteredDex.forEach(pkmn => {
         const pkmnId = Number(pkmn.id);
         const isUnlocked = playerCollection.has(pkmnId);
 
@@ -679,6 +668,12 @@ function switchTab(tabId, event) {
 
     if (tabId === 'combate' && typeof renderCombatMenu === 'function' && !(typeof CombatState !== 'undefined' && CombatState.playerTeam && CombatState.playerTeam.length && !CombatState.isBattleOver)) {
         if (typeof setCombatMenuVisible === 'function') setCombatMenuVisible(true); else renderCombatMenu();
+    }
+
+    if ((tabId === 'equipo' || tabId === 'dex') && typeof renderFilterBar === 'function') {
+        const scope = tabId === 'dex' ? 'dex' : 'inventory';
+        const bar = document.getElementById(`${scope}-filter-bar`);
+        if (bar && !bar.innerHTML.trim()) renderFilterBar(scope);
     }
 
     if (tabId === 'invocacion' && typeof renderPityInfo === 'function') {

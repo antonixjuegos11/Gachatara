@@ -223,7 +223,7 @@ function renderCandyPicker(rebuild = false) {
 
     if (candies <= 0) { closeCandyPicker(); return; }
 
-    const rows = userInventory.slice().sort((a, b) => Number(a.id) - Number(b.id))
+    const rows = userInventory.slice().sort((a, b) => (b.fav ? 1 : 0) - (a.fav ? 1 : 0) || Number(a.id) - Number(b.id))
         .filter(p => !query || p.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes(query) || String(p.id) === query.replace('#', ''))
         .map(p => {
             const lvl = Number(p.level) || 1;
@@ -231,7 +231,7 @@ function renderCandyPicker(rebuild = false) {
             return `
                 <div class="bp-row">
                     <img src="${p.sprite}" alt="${p.name}">
-                    <div class="bp-name">${p.name}<small>Nv. ${lvl}</small></div>
+                    <div class="bp-name">${p.fav ? '⭐ ' : ''}${p.name}<small>Nv. ${lvl}</small></div>
                     <button ${maxed ? 'disabled' : ''} onclick="useRareCandy(${p.id}, 1)">+1</button>
                     <button ${maxed || candies < 2 ? 'disabled' : ''} onclick="useRareCandy(${p.id}, 10)">+10</button>
                 </div>`;

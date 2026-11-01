@@ -165,6 +165,8 @@ function getPlayerTitles() {
             if (!titles.includes(t)) titles.push(t);
         }
     });
+    // Títulos conseguidos con logros
+    if (typeof getAchievementTitles === 'function') getAchievementTitles().forEach(t => { if (!titles.includes(t)) titles.push(t); });
     return titles;
 }
 

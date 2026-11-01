@@ -392,6 +392,10 @@ window.executePlayerMove = function(moveIndex) {
     const damageResult = calculateDamage(attacker, defender, move);
     defender.currentHp = Math.max(0, defender.currentHp - damageResult.damage);
     if (typeof applyMoveDrain === 'function') applyMoveDrain(attacker, move, damageResult.damage);
+    if (typeof trackMission === 'function') {
+        if (move.tier === 'ultimate') trackMission('ulti_used');
+        if (damageResult.isCrit) trackMission('crit_dealt');
+    }
     attacker.energy = Math.min(attacker.maxEnergy, attacker.energy + move.energyGain);
 
     if (move.statusEffect && damageResult.damage > 0 && !defender.status) {
@@ -849,6 +853,8 @@ function finishBattle(hasPlayerWon) {
     // Clasificatorio: puntos y rango
     const opts = CombatState.options || {};
     CombatState.rankedResult = (opts.ranked && typeof applyRankedResult === 'function') ? applyRankedResult(opts.ranked, hasPlayerWon) : null;
+
+    if (typeof checkAchievements === 'function') checkAchievements();   // rango recién conseguido
 
     // Objetos de un solo uso gastados durante el combate
     if (typeof syncConsumedItems === 'function') syncConsumedItems(CombatState.playerTeam);

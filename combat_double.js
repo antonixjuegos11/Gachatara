@@ -368,6 +368,10 @@ function executeDoubleAction(act) {
     const result = calculateDamage(unit, target, move);
     target.currentHp = Math.max(0, target.currentHp - result.damage);
     if (typeof applyMoveDrain === 'function') applyMoveDrain(unit, move, result.damage);
+    if (side === 'p' && typeof trackMission === 'function') {
+        if (move.tier === 'ultimate') trackMission('ulti_used');
+        if (result.isCrit) trackMission('crit_dealt');
+    }
     unit.energy = Math.min(unit.maxEnergy, unit.energy + move.energyGain);
 
     if (move.statusEffect && result.damage > 0 && !target.status) {
